@@ -8,7 +8,7 @@ This repository is an initial toolkit, not a collection of finished clock apps:
 
 - `clockctl` sends notifications to AWTRIX NG over HTTP.
 - `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
-- `apps/clock/` is ready for Berry apps but does not contain any yet.
+- `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
 
 Physical clocks must run **AWTRIX NG**. The stock Ulanzi firmware and AWTRIX 3 are not supported.
@@ -21,8 +21,10 @@ tc002-apps/
 │   ├── README.md                  Which code runs where
 │   ├── clock/                     ON THE TC002 — Berry scripts and assets
 │   │   ├── README.md              Clock-app layout and installation
+│   │   ├── <app>/                 Each on-device app follows this layout
+│   │   │   ├── main.be            Berry source uploaded to AWTRIX NG
+│   │   │   └── README.md          App-specific setup and usage
 │   │   └── assets/icons/          Shared clock icons (placeholder)
-│   │   # Future apps: <name>/main.be + README.md
 │   └── server/                    ON A VPS / COMPUTER — Go programs
 │       ├── README.md              Server-app layout and build instructions
 │       ├── cmd/
@@ -87,7 +89,7 @@ VPS / computer                            TC002 running AWTRIX NG
 
 Local development: dev/ runs headless AWTRIX in Docker instead of a TC002.
 Production: deploy/ runs Go services on the VPS; Berry stays on the clock.
-HTTP notifications work today; MQTT and custom Berry apps are planned.
+HTTP notifications and on-device Berry apps work today; MQTT integration is planned.
 ```
 
 ## Quick start
