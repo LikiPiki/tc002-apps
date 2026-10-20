@@ -6,7 +6,7 @@ Apps for Ulanzi TC002 running AWTRIX NG, with Go services for processing data an
 
 This repository is an initial toolkit, not a collection of finished clock apps:
 
-- `clockctl` sends notifications to AWTRIX NG over HTTP.
+- `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
@@ -29,11 +29,13 @@ tc002-apps/
 │       ├── README.md              Server-app layout and build instructions
 │       ├── cmd/
 │       │   ├── worker/main.go     Periodic service entry point (placeholder)
-│       │   └── clockctl/main.go   One-off notification CLI entry point
+│       │   └── clockctl/          Notifications, Berry deployment, and app display control
 │       └── internal/awtrix/
 │           └── client.go          Shared AWTRIX NG HTTP client
 ├── configs/
-│   └── apps.list.example          Copy to apps.list to select Go apps to build
+│   ├── apps.list.example          Copy to apps.list to select Go apps to build
+│   ├── clock.toml                 Shared Berry deployment defaults
+│   └── clock.local.toml.example   Personal clock config template
 ├── deploy/                        PRODUCTION — run Go services on your VPS
 │   ├── compose.yaml               Services, images, and runtime settings
 │   ├── .env.example               Clock URL and worker interval template
@@ -63,6 +65,7 @@ Generated locally (not committed):
   bin/<app>                        Native Go binaries
   dist/<app>.tar.gz                Docker images exported for transfer to a VPS
   configs/apps.list               Your Go app selection (optional)
+  configs/clock.local.toml        Your clock URL and Berry app selection (optional)
   deploy/.env                     Your deployment settings
 ```
 
@@ -136,6 +139,18 @@ make docker-build
 Run `make docker-save` to export the selected images to `dist/<app>.tar.gz` for transfer to a VPS. See the [deployment guide](docs/deployment.md).
 
 This selection applies to `make build`, `make docker-build`, and `make docker-save`. It does not control which Compose services are started.
+
+### Deploy Berry apps to the clock
+
+```sh
+cp configs/clock.local.toml.example configs/clock.local.toml
+# Set your clock's URL in configs/clock.local.toml.
+make clock-list
+make clock-deploy          # All Berry apps, or the list selected in clock config
+make clock-show APP=<name>
+```
+
+Use `make clock-deploy APP=<name>` to update just one app. The committed `configs/clock.toml` defaults to the local virtual clock; personal overrides are excluded from Git. To use the shared defaults without personal overrides, pass `CLOCK_LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for config precedence and error checks.
 
 ## Docker
 

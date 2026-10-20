@@ -16,7 +16,7 @@ A feature can have both components, but they live in separate runtime directorie
 
 A simple screen or notification can be generated entirely in Go. For custom animation or interaction, a Berry app receives data and handles rendering on the clock.
 
-The current implementation provides a minimal AWTRIX NG HTTP notification client. MQTT, authentication, specific data sources, and Berry script upload will be added as needed by individual apps.
+The current implementation provides HTTP notifications, Berry script upload, and display selection through `clockctl`. Shared and personal TOML configs select the clock and Berry apps to deploy. MQTT, authentication, and specific data sources will be added as needed by individual apps.
 
 Each Go command lives in `apps/server/cmd/<name>`, with reusable logic in `apps/server/internal/`. A shared root-level `go.mod` and Dockerfile build the command selected by the `APP` build argument. Independent services get separate entries in Compose. `configs/apps.list` selects only Go commands; Berry scripts and their assets are not included in the runtime images.
 

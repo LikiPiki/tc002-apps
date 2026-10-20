@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -11,9 +12,31 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "deploy", "show", "list":
+			if err := runScripts(os.Args[1], os.Args[2:]); err != nil {
+				if err == flag.ErrHelp {
+					return
+				}
+				slog.Error("clock command failed", "error", err)
+				os.Exit(1)
+			}
+			return
+		}
+	}
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|list [flags]")
+		fmt.Fprintln(os.Stderr, "Run clockctl deploy --help for Berry upload options.")
+		flag.PrintDefaults()
+	}
 	url := flag.String("url", os.Getenv("AWTRIX_URL"), "AWTRIX NG base URL (or AWTRIX_URL)")
 	text := flag.String("text", "Hello from Go", "notification text")
 	flag.Parse()
+	if flag.NArg() != 0 {
+		slog.Error("unexpected arguments; use deploy, show, list, or notification flags")
+		os.Exit(1)
+	}
 
 	client, err := awtrix.NewClient(*url)
 	if err == nil {

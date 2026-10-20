@@ -2,7 +2,7 @@
 FROM golang:1.25-alpine AS build
 ARG APP=worker
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY apps/server/ ./apps/server/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/app ./apps/server/cmd/${APP}
 

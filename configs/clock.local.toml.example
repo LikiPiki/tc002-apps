@@ -1,0 +1,6 @@
+# Copy to configs/clock.local.toml and set your clock's address.
+# Only fields included here override configs/clock.toml.
+url = "http://192.168.1.50"
+
+# Optional: deploy only these apps instead of all apps.
+# apps = ["cigar", "mackerel"]

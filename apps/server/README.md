@@ -5,7 +5,7 @@ Everything in this directory runs outside the clock, on a VPS or a development c
 ```text
 cmd/
   worker/       Placeholder periodic service for a VPS
-  clockctl/     One-off notification CLI for a computer or VPS
+  clockctl/     Notifications, Berry deployment, and app display control
 internal/
   awtrix/       Shared AWTRIX NG HTTP client
 ```

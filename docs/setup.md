@@ -14,3 +14,5 @@ This project targets the **Ulanzi TC002 running AWTRIX NG**. The stock Ulanzi fi
 The initial client expects an HTTP API without authentication. If your setup requires authentication, client support must be added before use.
 
 Add Berry apps from `apps/clock/` through the Scripts tab. Go programs in `apps/server/` run on your computer or VPS and are not uploaded to the clock. Reference: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).
+
+To deploy from the repository, copy `configs/clock.local.toml.example` to `configs/clock.local.toml` and set `url` to the clock's address. Run `make clock-list` to check the target, `make clock-deploy` to upload the selected apps, and `make clock-show APP=mackerel` to show one. Personal config is not committed. See [Berry deployment](commands.md#berry-deployment).

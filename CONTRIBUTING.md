@@ -35,7 +35,7 @@ CI currently builds the Go binaries and the Docker services declared in producti
 
 1. Add `apps/clock/<name>/main.be` and a `README.md` describing its purpose, supported AWTRIX version, settings, and expected input data. These apps run inside AWTRIX NG on the clock.
 2. Place shared icons in `apps/clock/assets/icons/`, with source and license information. Keep app-specific assets alongside the app.
-3. Run `make dev`, upload the script through the Scripts tab, and inspect its output and runtime errors.
+3. Run `make dev`, then `make clock-deploy APP=<name> CLOCK_LOCAL_CONFIG=` and `make clock-show APP=<name> CLOCK_LOCAL_CONFIG=`. Keep `AWTRIX_URL` unset so these commands use the shared local URL. Inspect the live output and runtime errors. You can also use the Scripts tab.
 4. Check hardware-dependent features on a physical TC002. The headless environment does not emulate all hardware.
 
 ## Before opening a pull request

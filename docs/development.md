@@ -12,6 +12,9 @@ Run these commands from the repository root:
 | `make build` | Build selected Go binaries into `bin/` |
 | `make docker-build` | Build selected production Go images |
 | `make docker-save` | Export selected images to `dist/<app>.tar.gz` |
+| `make clock-list` | Show the Berry deployment target and selected apps |
+| `make clock-deploy [APP=<name>]` | Upload selected Berry scripts to the configured target |
+| `make clock-show APP=<name>` | Show an installed script and check its runtime status |
 | `make dev` | Build and start virtual AWTRIX |
 | `make dev-build` | Build all development images without starting them |
 | `make dev-notify TEXT="Hello!"` | Send a notification from a Go container |
@@ -43,7 +46,7 @@ You can also run the Go client directly on your computer:
 AWTRIX_URL=http://localhost:8080 go run ./apps/server/cmd/clockctl --text 'Native Go works'
 ```
 
-Use the Scripts tab to manually upload Berry apps from `apps/clock/`, inspect rendering, and check runtime errors. Go programs in `apps/server/` run outside AWTRIX and publish over its API. Automated script upload is not implemented yet.
+Upload Berry apps from `apps/clock/` with `make clock-deploy CLOCK_LOCAL_CONFIG=` and show one with `make clock-show APP=mackerel CLOCK_LOCAL_CONFIG=`. These commands use the shared local URL without personal overrides; leave `AWTRIX_URL` unset. You can also use the Scripts tab. Go programs in `apps/server/` run outside AWTRIX and publish over its API. See [Berry deployment](commands.md#berry-deployment) for configuration and error-checking details.
 
 ## What dev-check verifies
 

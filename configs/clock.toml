@@ -1,0 +1,6 @@
+# Shared defaults: the local virtual clock. Run `make dev` to start it.
+url = "http://localhost:8080"
+
+# Deploy all Berry apps found in apps/clock/*/main.be.
+# To select a subset, use e.g. apps = ["cigar", "mackerel"].
+apps = ["*"]
