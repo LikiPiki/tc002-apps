@@ -34,4 +34,15 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml up -d --build
 docker compose --env-file deploy/.env -f deploy/compose.yaml logs -f worker
 ```
 
+## Локальная проверка без часов
+
+```sh
+make dev-check
+# Откройте http://localhost:8080 — виртуальная матрица TC002 52 × 16.
+make dev-notify TEXT="Hello TC002"
+make dev-down
+```
+
+Dev-окружение собирает настоящий headless AWTRIX NG в Alpine-контейнере. Подробности и ограничения — в [руководстве по локальной разработке](docs/development.md). Все команды: `make help`.
+
 Подробнее: [развёртывание на VPS](docs/deployment.md), [настройка часов](docs/setup.md), [архитектура](docs/architecture.md).

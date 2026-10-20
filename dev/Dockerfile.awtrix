@@ -1,0 +1,25 @@
+# Local headless AWTRIX, not a TC002 firmware image.
+FROM alpine:3.22 AS build
+# Pin the engine so a new upstream commit cannot silently change our dev API.
+ARG AWTRIX_REV=fb09bc5c8f7e90c29196507ddf9ab502f7220b82
+RUN apk add --no-cache build-base cmake ninja linux-headers git python3 py3-pip \
+    nodejs npm openssl-dev xz-dev libjpeg-turbo-dev ca-certificates
+WORKDIR /src
+RUN git init && git remote add origin https://github.com/Blueforcer/awtrix-ng.git \
+    && git fetch --depth 1 origin "$AWTRIX_REV" && git checkout --detach FETCH_HEAD
+RUN python3 -m venv /opt/pio && /opt/pio/bin/pip install --no-cache-dir platformio==6.1.19
+ENV PATH="/opt/pio/bin:${PATH}"
+RUN pio pkg install -e native
+RUN cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_TESTING=OFF -DAWTRIX_WERROR=OFF \
+    && cmake --build build/dev --target awtrix-linux --parallel 2
+
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates libstdc++ libgcc libssl3 libcrypto3 xz-libs libjpeg-turbo \
+    && adduser -D -u 10001 app && mkdir /data && chown app:app /data
+COPY --from=build /src/build/dev/awtrix-linux /usr/local/bin/awtrix-linux
+COPY --from=build /src/webui/index.html /app/webui/index.html
+USER app
+EXPOSE 8080
+ENTRYPOINT ["awtrix-linux"]
+CMD ["--data", "/data", "--port", "8080", "--width", "52", "--height", "16", "--webui", "/app/webui/index.html", "--lan"]
