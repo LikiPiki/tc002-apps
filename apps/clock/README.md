@@ -8,7 +8,6 @@ Each app lives at `apps/clock/<name>/main.be`, alongside a `README.md` describin
 
 | App | Description |
 | --- | --- |
-| [hello-world](hello-world/) | A minimal two-line greeting for the TC002's 52 x 16 display |
 | [cigar](cigar/) | An animated cigar with curling smoke, pulsing embers, and sparks |
 | [seagull](seagull/) | A screenshot-derived upside-down seagull with kicking feet |
 
