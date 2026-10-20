@@ -10,6 +10,7 @@ Each app lives at `apps/clock/<name>/main.be`, alongside a `README.md` describin
 | --- | --- |
 | [cigar](cigar/) | An animated cigar with curling smoke, pulsing embers, and sparks |
 | [seagull](seagull/) | A screenshot-derived upside-down seagull with kicking feet |
+| [mackerel](mackerel/) | A photo-derived golden mackerel with a waving tail and swimming motion |
 
 Install apps through the Scripts tab in the clock's web UI or the HTTP API shown in the app's README. Automated upload through `clockctl` is planned but not implemented.
 
