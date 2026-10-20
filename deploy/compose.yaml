@@ -1,5 +1,6 @@
 services:
   worker:
+    image: tc002-apps/worker:local
     build:
       context: ..
       args:
@@ -17,6 +18,7 @@ services:
         max-file: "3"
 
   clockctl:
+    image: tc002-apps/clockctl:local
     profiles: [tools]
     build:
       context: ..

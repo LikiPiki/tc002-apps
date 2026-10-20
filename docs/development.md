@@ -8,8 +8,10 @@
 | --- | --- |
 | `make help` | Список основных команд |
 | `make check` | Проверка форматирования Go, vet, тесты |
-| `make build` | Нативные Go-бинарники в `bin/` |
-| `make docker-build` | Сборка production-образов Go |
+| `make list-apps` | Приложения, выбранные конфигом (без конфига — все) |
+| `make build` | Выбранные Go-бинарники в `bin/` |
+| `make docker-build` | Выбранные production-образы Go |
+| `make docker-save` | Экспорт выбранных образов в `dist/<app>.tar.gz` |
 | `make dev` | Сборка и запуск виртуального AWTRIX |
 | `make dev-notify TEXT="Привет!"` | Уведомление из Go-контейнера |
 | `make dev-check` | Запуск AWTRIX, воркера и HTTP smoke-проверки |

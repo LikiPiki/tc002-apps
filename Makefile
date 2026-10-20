@@ -1,11 +1,15 @@
 DEV_COMPOSE = docker compose -p tc002-dev -f dev/compose.yaml
 TEXT ?= Hello from local Go
-export TEXT
+CONFIG ?= configs/apps.list
+export TEXT CONFIG
 
-.PHONY: help check build docker-build dev dev-build dev-down dev-logs dev-notify dev-check
+.PHONY: help check build docker-build docker-save list-apps dev dev-build dev-down dev-logs dev-notify dev-check
 
 help:
-	@printf '%s\n' 'make check         Go format, vet and tests' 'make build         Build local binaries into bin/' 'make docker-build  Build production Go images' 'make dev           Build/start virtual AWTRIX at http://localhost:8080' 'make dev-notify    Send a notification (TEXT="...")' 'make dev-check     Build/start AWTRIX and send a smoke notification' 'make dev-logs      Follow AWTRIX logs' 'make dev-down      Stop dev environment, preserving data'
+	@printf '%s\n' 'make list-apps      Show selected apps (configs/apps.list; absent = all)' 'make check         Go format, vet and tests' 'make build         Build selected Go binaries into bin/' 'make docker-build  Build selected Go images' 'make docker-save   Export selected images to dist/<app>.tar.gz' 'make dev           Build/start virtual AWTRIX at http://localhost:8080' 'make dev-notify    Send a notification (TEXT="...")' 'make dev-check     Build/start AWTRIX and send a smoke notification' 'make dev-logs      Follow AWTRIX logs' 'make dev-down      Stop dev environment, preserving data'
+
+list-apps:
+	@sh tools/select-apps.sh "$$CONFIG"
 
 check:
 	@test -z "$$(gofmt -l cmd internal)" || (gofmt -l cmd internal; exit 1)
@@ -13,11 +17,19 @@ check:
 	go test ./...
 
 build:
-	go build -o bin/worker ./cmd/worker
-	go build -o bin/clockctl ./cmd/clockctl
+	@set -eu; apps=$$(sh tools/select-apps.sh "$$CONFIG"); \
+	for app in $$apps; do go build -o "bin/$$app" "./cmd/$$app"; done
 
 docker-build:
-	docker compose --env-file deploy/.env.example -f deploy/compose.yaml --profile tools build
+	@set -eu; apps=$$(sh tools/select-apps.sh "$$CONFIG"); \
+	for app in $$apps; do docker build --build-arg "APP=$$app" -t "tc002-apps/$$app:local" .; done
+
+docker-save: docker-build
+	@set -eu; apps=$$(sh tools/select-apps.sh "$$CONFIG"); mkdir -p dist; \
+	for app in $$apps; do \
+		docker image save -o "dist/$$app.tar" "tc002-apps/$$app:local"; \
+		gzip -f "dist/$$app.tar"; \
+	done
 
 dev-build:
 	$(DEV_COMPOSE) --profile tools build

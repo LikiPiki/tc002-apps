@@ -1,0 +1,4 @@
+# Copy to configs/apps.list to build only the apps you need.
+# Without configs/apps.list all commands in cmd/ are built.
+worker
+# clockctl

@@ -20,11 +20,16 @@ docs/                Архитектура, настройка, развёрт�
 
 ```sh
 make check
+make list-apps
+make build
+make docker-build
 go run ./cmd/worker --once
 AWTRIX_URL=http://awtrixng-a1b2c3.local go run ./cmd/clockctl --text 'Hello from Go'
 ```
 
 `worker` пока только пишет отметку выполнения в лог: получение данных и публикация появятся вместе с первым приложением. `clockctl` уже отправляет уведомления через HTTP API AWTRIX NG.
+
+Выбор Go-приложений задаётся в `configs/apps.list` (по имени из `cmd/` на строку). Если файла нет, собираются все. Начните с `cp configs/apps.list.example configs/apps.list` — пример выбирает только `worker`. `make docker-save` создаёт `dist/<app>.tar.gz` для переноса выбранных образов на VPS. Подробности — в [инструкции развёртывания](docs/deployment.md).
 
 ## Docker
 
