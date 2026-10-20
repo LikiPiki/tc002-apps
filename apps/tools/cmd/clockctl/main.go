@@ -8,14 +8,21 @@ import (
 	"os"
 	"time"
 
-	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
-	projectconfig "github.com/LikiPiki/tc002-apps/apps/server/internal/config"
+	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func main() {
 	if len(os.Args) > 1 {
+		if os.Args[1] == "build-list" || os.Args[1] == "server-list" {
+			if err := runBuildList(os.Args[1], os.Args[2:]); err != nil && err != flag.ErrHelp {
+				slog.Error("build selection failed", "error", err)
+				os.Exit(1)
+			}
+			return
+		}
 		switch os.Args[1] {
-		case "deploy", "show", "start", "stop", "list", "server-list", "check":
+		case "deploy", "show", "start", "stop", "list", "check":
 			if err := runScripts(os.Args[1], os.Args[2:]); err != nil {
 				if err == flag.ErrHelp {
 					return
@@ -27,7 +34,7 @@ func main() {
 		}
 	}
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|start|stop|list|server-list|check [flags]")
+		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|start|stop|list|build-list|server-list|check [flags]")
 		fmt.Fprintln(os.Stderr, "Run clockctl deploy --help for Berry upload options.")
 		flag.PrintDefaults()
 	}

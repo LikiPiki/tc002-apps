@@ -1,6 +1,6 @@
 # Go command reference
 
-Run commands from the repository root. All commands here run outside the clock, on a computer or VPS. Sources live in `apps/server/`. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
+Run commands from the repository root. Utility commands live in `apps/tools/`; independent VPS programs live in `apps/server/`. Both can run natively or in their separate Docker images. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
 
 Both commands read `configs/config.toml` and optional `configs/config.local.toml`. See [Project configuration](configuration.md) for the schema, merging, paths, and Docker mounts.
 
@@ -8,9 +8,9 @@ Both commands read `configs/config.toml` and optional `configs/config.local.toml
 
 ```sh
 # Use clock.url from the project config:
-go run ./apps/server/cmd/clockctl --text 'Hello TC002'
+go run ./apps/tools/cmd/clockctl --text 'Hello TC002'
 # Or explicitly override the URL:
-go run ./apps/server/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
+go run ./apps/tools/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
 ```
 
 | Option | Default | Description |
@@ -24,10 +24,12 @@ The client posts to `/api/v1/notifications` with a 10-second timeout. Invalid UR
 
 HTTP failures include the method, API path (including the app name for script operations), status, and AWTRIX's error code/message/field when present. Plain-text or malformed responses use a bounded body excerpt. Transport and JSON-decoding failures also include the operation. For example: `PUT /api/v1/apps/script-update/demo: AWTRIX returned 422 ... (validationFailed): ...`. The same error handling is used for notifications and script operations.
 
-For production Docker, set `clock.url` in your personal TOML and run:
+For a standalone Docker tool, set `clock.url` in your personal TOML and run:
 
 ```sh
-docker compose -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from Docker'
+make docker-build GROUP=tools
+docker run --rm --mount "type=bind,source=$PWD/configs,target=/app/configs,readonly" \
+  tc002-apps/tools/clockctl:local --text 'Hello from Docker'
 ```
 
 For the virtual clock, use `make dev` followed by `make dev-notify TEXT="Hello!"`.
@@ -58,10 +60,11 @@ Keep `AWTRIX_URL` unset when relying on config URLs. To explicitly override the 
 Direct CLI equivalents:
 
 ```sh
-go run ./apps/server/cmd/clockctl deploy --app mackerel
-go run ./apps/server/cmd/clockctl show --app mackerel
-go run ./apps/server/cmd/clockctl list --local-config ''
-go run ./apps/server/cmd/clockctl server-list # Go build selection, names only
+go run ./apps/tools/cmd/clockctl deploy --app mackerel
+go run ./apps/tools/cmd/clockctl show --app mackerel
+go run ./apps/tools/cmd/clockctl list --local-config ''
+go run ./apps/tools/cmd/clockctl build-list --group all # Qualified Go artifact selection
+go run ./apps/tools/cmd/clockctl server-list # Compatibility alias: server command names only
 ```
 
 Deployment reads all selected sources before writing to the device. It requires running Berry scripting and the `scriptUpdates` capability. It reads the exact previous source, then uses `/api/v1/apps/script-update/{name}` with `expected_source` (or `null` for a new app). AWTRIX preserves the previous script if the new source fails compilation or setup, and rejects concurrent changes with HTTP 409. There is no unsafe replacement fallback. Update AWTRIX NG if atomic updates are unsupported.
@@ -77,14 +80,14 @@ Deployment does not explicitly switch the current screen. `clock-show` selects a
 To deploy scripts from Docker, mount the repository read-only so the config and source are available:
 
 ```sh
-# Include clockctl in server.apps before building its image.
-make docker-build
+# Include clockctl in tools.apps before building its image.
+make docker-build GROUP=tools
 docker run --rm --workdir /repo \
   --mount "type=bind,source=$PWD,target=/repo,readonly" \
-  tc002-apps/clockctl:local list
+  tc002-apps/tools/clockctl:local list
 ```
 
-Replace `list` with `deploy` or `show --app mackerel`. Inside Docker, `localhost` means the container itself; use a reachable physical-clock address or the appropriate container network address. Production Compose mounts config only, not Berry source files.
+Replace `list` with `deploy` or `show --app mackerel`. Inside Docker, `localhost` means the container itself; use a reachable physical-clock address or the appropriate container network address. The utility is not a production Compose service; see [utility apps](../apps/tools/README.md).
 
 ## worker
 

@@ -3,17 +3,30 @@
 ## Runtime boundaries
 
 ```text
-Computer / VPS                              TC002 / AWTRIX NG
-apps/server/                                apps/clock/
-  Go CLI and data services -- HTTP ------->    screens/    normal rotation
-                                             services/   autonomous background work
-                                             on-demand/  explicitly started sessions
+VPS applications                            TC002 / AWTRIX NG
+apps/server/ -- data over HTTP ---------->   apps/clock/
+Computer / one-off utility container           screens/    normal rotation
+apps/tools/ -- management HTTP ---------->      services/   autonomous background work
+                                               on-demand/  explicitly started sessions
 
 Development: the same AWTRIX engine runs in Docker with a virtual 52 x 16 display.
 Future MQTT: a transport for events and data; not a second owner of device policy.
 ```
 
-Go programs run outside the clock, as native binaries or Docker containers. Berry source runs inside AWTRIX on the TC002. A simple pushed notification can be entirely server-side; custom local rendering uses Berry. A feature may have both components, with a documented data contract.
+VPS processes live in `apps/server`; CLI, build discovery, catalogs, and check scenarios live in `apps/tools`. Berry runs inside AWTRIX on the TC002. Each Go family has its own Dockerfile, which copies only that family's sources plus shared libraries. Production Compose contains server services only; utilities can be run separately on a computer or on demand on a VPS.
+
+### Go dependency rules
+
+```text
+apps/server ──> internal/awtrix, internal/config
+apps/tools  ──> internal/awtrix, internal/config
+apps/server ─X─> apps/tools/internal
+shared internal ─X─> application/tool internals
+```
+
+Root `internal/awtrix` implements API requests/responses, while `apps/tools/internal/clockcheck` owns sampling loops and assertions. Root `internal/config` parses/merges TOML; it does not discover source files. `apps/tools/internal/build` selects Go artifacts, and `clockapps` selects Berry apps. Go's `internal` import rules enforce the utility implementation boundary. Keep server-only business logic in `apps/server/internal` when needed.
+
+The root Go module is shared, but runtime dependencies and source copies are separated. Build artifacts include their group (`server/worker`, `tools/clockctl`) so a utility and a server can even have the same short name without overwriting each other. Make is orchestration; root `scripts/`, `dev/`, and `deploy/` contain shell/infrastructure files, not application packages.
 
 ## Three Berry lifecycle kinds
 
@@ -41,7 +54,7 @@ Keep independent failure domains separate. Group related rules under the owner o
 
 - `clock.deploy.screens/services/on_demand` select upload artifacts.
 - `clock.screens.<name>`, `clock.services.<name>`, and `clock.on_demand.<name>` contain app settings.
-- `server.apps` selects Go build/export artifacts; `server.worker` contains worker settings.
+- `server.apps` selects VPS artifacts; `tools.apps` selects utility artifacts. `GROUP=server|tools|all` filters Go builds/exports. `server.worker` contains worker runtime settings.
 
 App selection is not app behavior. A deployed service can have a feature disabled in its own settings. An empty clock-category list means no uploads; `["*"]` discovers all apps in that category. Unselected remote apps are not removed or disabled automatically.
 
@@ -61,5 +74,9 @@ Inside the check sandbox, services are disabled after observation and display po
 ## Additional AWTRIX concepts
 
 Berry modules share code but are not running apps. They are not supported by our app catalog yet: add a dependency-aware module installation phase when a real shared-code use case appears, rather than treating modules as services. Built-in clock screens and pushed JSON apps are native AWTRIX concepts, not `.be` files in this catalog. Native device settings (timezone, network, brightness) also remain distinct from individual app settings.
+
+## Integrations across runtimes
+
+**Alpha / design-stage:** a shared integration ID is intended to group server producers, optional clock-side services, and visual consumers by feature without merging their source trees. Their relationship is an explicit data contract (channel, payload version, freshness, and failure behavior), not an assumed match of directory names. The current apps are autonomous and the worker is a placeholder; no pairing registry or `[integrations]` TOML schema is implemented yet. See [integration architecture](integrations.md) for the experimental convention and first-implementation requirements.
 
 See [configuration](configuration.md), [commands](commands.md), and [contributing](../CONTRIBUTING.md).

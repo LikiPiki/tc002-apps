@@ -26,9 +26,10 @@ services:
 
   clock-check:
     profiles: [checks]
-    image: tc002-apps/clockctl-check:local
-    build:
+    image: tc002-apps/tools/clockctl:check
+    build: &tools-build
       context: ..
+      dockerfile: apps/tools/Dockerfile
       args:
         APP: clockctl
     working_dir: /repo
@@ -40,10 +41,7 @@ services:
 
   clockctl:
     profiles: [tools]
-    build:
-      context: ..
-      args:
-        APP: clockctl
+    build: *tools-build
     environment:
       AWTRIX_URL: http://awtrix:8080
       TC002_LOCAL_CONFIG: ""
@@ -55,9 +53,10 @@ services:
         condition: service_healthy
 
   worker:
-    profiles: [tools]
+    profiles: [server]
     build:
       context: ..
+      dockerfile: apps/server/Dockerfile
       args:
         APP: worker
     environment:

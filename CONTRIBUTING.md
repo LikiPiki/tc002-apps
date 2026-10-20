@@ -21,15 +21,15 @@ make dev-down
 
 The first virtual-clock build downloads and compiles AWTRIX NG and can take several minutes.
 
-## Adding a Go app
+## Adding a Go application
 
-1. Add the entry point at `apps/server/cmd/<name>/main.go`. These programs run on a VPS or computer, not on the clock. Use a directory name containing only letters, digits, hyphens, or underscores.
-2. Put reusable or app-specific processing logic in `apps/server/internal/` and add meaningful tests for its behavior.
+1. Choose `apps/server/cmd/<name>/main.go` for a VPS process or `apps/tools/cmd/<name>/main.go` for a utility. Use only letters, digits, hyphens, or underscores in names.
+2. Put family-specific logic in that family's `internal/`. Root `internal/` is for shared API/config code, never utility-specific checking/discovery. Server applications must not import tools. Add meaningful behavior tests.
 3. Document configuration, flags, data sources, and whether the command is one-off or long-running.
-4. Build it with `make build` or `make docker-build`. If your personal TOML restricts `server.apps`, add the app or use `["*"]` to build all commands.
-5. For managed deployment, add a service in `deploy/compose.yaml` using build argument `APP: <name>` and image `tc002-apps/<name>:local`. Use the `tools` profile for one-off utilities. Add a service in `dev/compose.yaml` if the app needs a containerized local integration workflow.
+4. Build with `make build GROUP=<server|tools>` or `make docker-build GROUP=<server|tools>`. Check the appropriate `server.apps` or `tools.apps` selection. Artifact paths and image tags include the family.
+5. Only VPS processes get production Compose services, using `apps/server/Dockerfile` and image `tc002-apps/server/<name>:local`. Utilities use `apps/tools/Dockerfile` and run independently. Add a dev service if it helps local integration testing.
 
-CI currently builds the Go binaries and the Docker services declared in production Compose. Add the Compose service when adding a deployable app so its image is covered too.
+CI checks all Go packages, builds selected server/tool binaries and images, and validates production and dev Compose. Shared defaults select all current Go commands. Add the production Compose service for a VPS process. Future screen/VPS features can follow the [alpha integration ID/contract design](docs/integrations.md), with cross-linked component READMEs; the pairing registry and TOML schema are not implemented yet.
 
 ## Adding a Berry app
 
@@ -50,4 +50,4 @@ Register per-app settings under `clock.<category>.<name>` in TOML (`on_demand` f
 - Update the relevant guides and examples when behavior or configuration changes.
 - Keep personal settings and actual credentials in the ignored `configs/config.local.toml`, not in commits. All code reads the [same project TOML](docs/configuration.md).
 
-Open a branch and submit a pull request describing the change and how you verified it. CI checks Go formatting, vet, tests, native builds, production Compose configuration, and production image builds. It does not currently run the virtual-clock integration or automatically test Berry apps.
+Open a branch and submit a pull request describing the change and how you verified it. CI checks Go formatting, vet, tests, native builds, Compose configuration, and isolated server/tool image builds. It does not currently run the virtual-clock integration or automatically test Berry apps.

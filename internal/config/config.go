@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"time"
 
@@ -36,6 +35,7 @@ type Config struct {
 		Apps   []string
 		Worker struct{ Interval string }
 	}
+	Tools struct{ Apps []string }
 }
 
 func Paths(flags *flag.FlagSet) (base, personal *string) {
@@ -87,6 +87,9 @@ func Load(base, personal string) (Config, error) {
 					Interval *string `toml:"interval"`
 				} `toml:"worker"`
 			} `toml:"server"`
+			Tools struct {
+				Apps *[]string `toml:"apps"`
+			} `toml:"tools"`
 		}
 		decoder := toml.NewDecoder(bytes.NewReader(data))
 		decoder.DisallowUnknownFields()
@@ -135,6 +138,13 @@ func Load(base, personal string) (Config, error) {
 		}
 		if fields.Server.Worker.Interval != nil {
 			c.Server.Worker.Interval = *fields.Server.Worker.Interval
+		}
+		if fields.Tools.Apps != nil {
+			if len(*fields.Tools.Apps) == 0 {
+				c.Tools.Apps = []string{}
+			} else if c.Tools.Apps, err = selection(*fields.Tools.Apps); err != nil {
+				return c, fmt.Errorf("%s: tools.apps: %w", path, err)
+			}
 		}
 	}
 	u, err := url.Parse(c.Clock.URL)
@@ -189,26 +199,4 @@ func selection(names []string) ([]string, error) {
 		}
 	}
 	return selected, nil
-}
-
-func ServerApps(root string, names []string) ([]string, error) {
-	if names == nil {
-		paths, err := filepath.Glob(filepath.Join(root, "*", "main.go"))
-		if err != nil {
-			return nil, err
-		}
-		for _, path := range paths {
-			names = append(names, filepath.Base(filepath.Dir(path)))
-		}
-	}
-	names, err := selection(names)
-	if err != nil {
-		return nil, err
-	}
-	for _, name := range names {
-		if _, err := os.Stat(filepath.Join(root, name, "main.go")); err != nil {
-			return nil, fmt.Errorf("server app %s: %w", name, err)
-		}
-	}
-	return names, nil
 }

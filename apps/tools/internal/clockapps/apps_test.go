@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/LikiPiki/tc002-apps/apps/server/internal/config"
+	"github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func fixture(t *testing.T, root, kind, name, source string) {

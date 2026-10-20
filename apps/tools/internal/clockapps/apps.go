@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
-	"github.com/LikiPiki/tc002-apps/apps/server/internal/config"
+	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 type Script struct {

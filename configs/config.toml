@@ -16,3 +16,6 @@ apps = ["*"] # Go commands to build from apps/server/cmd/
 
 [server.worker]
 interval = "1m"
+
+[tools]
+apps = ["*"] # CLI utilities, built separately from VPS services.

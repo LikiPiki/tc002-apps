@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	projectconfig "github.com/LikiPiki/tc002-apps/apps/server/internal/config"
+	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func main() {

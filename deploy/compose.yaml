@@ -1,11 +1,12 @@
 services:
   worker:
-    image: tc002-apps/worker:local
+    image: tc002-apps/server/worker:local
     build:
       context: ..
+      dockerfile: apps/server/Dockerfile
       args:
         APP: worker
-    volumes: &project-config
+    volumes:
       - type: bind
         source: ../configs
         target: /app/configs
@@ -22,15 +23,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-  clockctl:
-    image: tc002-apps/clockctl:local
-    profiles: [tools]
-    build:
-      context: ..
-      args:
-        APP: clockctl
-    volumes: *project-config
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: ["no-new-privileges:true"]

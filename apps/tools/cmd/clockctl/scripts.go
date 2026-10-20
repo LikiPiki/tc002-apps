@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
-	"github.com/LikiPiki/tc002-apps/apps/server/internal/clockapps"
-	projectconfig "github.com/LikiPiki/tc002-apps/apps/server/internal/config"
+	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockapps"
+	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockcheck"
+	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func runScripts(command string, args []string) error {
@@ -32,16 +33,6 @@ func runScripts(command string, args []string) error {
 	config, err := projectconfig.Load(*base, *personal)
 	if err != nil {
 		return err
-	}
-	if command == "server-list" {
-		names, err := projectconfig.ServerApps("apps/server/cmd", config.Server.Apps)
-		if err != nil {
-			return err
-		}
-		for _, name := range names {
-			fmt.Println(name)
-		}
-		return nil
 	}
 	if env := os.Getenv("AWTRIX_URL"); env != "" {
 		config.Clock.URL = env
@@ -129,7 +120,7 @@ func checkScript(client *awtrix.Client, script clockapps.Script, duration time.D
 	ctx, cancel := context.WithTimeout(context.Background(), duration+10*time.Second)
 	defer cancel()
 	if script.Kind == "services" {
-		checks, err := client.ObserveHeadless(ctx, script.Name, duration)
+		checks, err := clockcheck.ObserveHeadless(ctx, client, script.Name, duration)
 		if err != nil {
 			return err
 		}
@@ -145,7 +136,7 @@ func checkScript(client *awtrix.Client, script clockapps.Script, duration time.D
 	if err := client.ShowScript(ctx, script.Name); err != nil {
 		return err
 	}
-	frames, err := client.ObserveScript(ctx, script.Name, duration)
+	frames, err := clockcheck.ObserveScript(ctx, client, script.Name, duration)
 	if err != nil {
 		return err
 	}

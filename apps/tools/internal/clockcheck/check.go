@@ -1,14 +1,15 @@
-package awtrix
+package clockcheck
 
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
+
+	"github.com/LikiPiki/tc002-apps/internal/awtrix"
 )
 
 // ObserveHeadless checks background hooks without requiring an active display page.
-func (c *Client) ObserveHeadless(ctx context.Context, name string, duration time.Duration) (int, error) {
+func ObserveHeadless(ctx context.Context, c *awtrix.Client, name string, duration time.Duration) (int, error) {
 	if duration < 1500*time.Millisecond {
 		return 0, fmt.Errorf("headless observation requires at least 1500ms to exercise loop()")
 	}
@@ -33,7 +34,7 @@ func (c *Client) ObserveHeadless(ctx context.Context, name string, duration time
 }
 
 // ObserveScript samples an already displayed app. Static or black frames are valid.
-func (c *Client) ObserveScript(ctx context.Context, name string, duration time.Duration) (int, error) {
+func ObserveScript(ctx context.Context, c *awtrix.Client, name string, duration time.Duration) (int, error) {
 	if duration < 250*time.Millisecond {
 		return 0, fmt.Errorf("observation duration must be at least 250ms")
 	}
@@ -55,21 +56,15 @@ func (c *Client) ObserveScript(ctx context.Context, name string, duration time.D
 			if err := c.CheckScript(ctx, name); err != nil {
 				return frames, err
 			}
-			var device struct {
-				CurrentApp string `json:"currentApp"`
-			}
-			if err := c.request(ctx, http.MethodGet, "/api/v1/device", "", nil, &device); err != nil {
+			device, err := c.Device(ctx)
+			if err != nil {
 				return frames, err
 			}
 			if device.CurrentApp != name {
 				return frames, fmt.Errorf("expected %s on screen, got %q", name, device.CurrentApp)
 			}
-			var screen struct {
-				Width  int      `json:"width"`
-				Height int      `json:"height"`
-				Pixels []uint32 `json:"pixels"`
-			}
-			if err := c.request(ctx, http.MethodGet, "/api/v1/display/screen", "", nil, &screen); err != nil {
+			screen, err := c.Frame(ctx)
+			if err != nil {
 				return frames, err
 			}
 			if screen.Width <= 0 || screen.Width > 128 || screen.Height <= 0 || screen.Height > 32 || len(screen.Pixels) != screen.Width*screen.Height {

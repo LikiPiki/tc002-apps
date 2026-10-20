@@ -23,5 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose -f deploy/compose.yaml --profile tools config --quiet
-      - run: docker compose -f deploy/compose.yaml --profile tools build
+      - run: docker compose -f deploy/compose.yaml config --quiet
+      - run: docker compose -f dev/compose.yaml --profile tools --profile server --profile checks config --quiet
+      - run: make docker-build CONFIG_RUNNER=docker

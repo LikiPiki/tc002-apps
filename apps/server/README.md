@@ -1,24 +1,28 @@
-# Server apps (Go)
+# VPS applications
 
-Everything in this directory runs outside the clock, on a VPS or a development computer. Go programs call AWTRIX NG over the network; they are not installed on the TC002.
+This directory contains processes intended to run on a VPS. It does not contain the clock-management CLI, source catalogs, or local display checks.
 
 ```text
-cmd/
-  worker/       Placeholder periodic service for a VPS
-  clockctl/     Notifications, Berry deployment, and app display control
-internal/
-  awtrix/       Shared AWTRIX NG HTTP client
+cmd/worker/     Placeholder periodic service
+Dockerfile      Server-only build: apps/server + shared internal libraries
 ```
 
-The repository root contains the shared `go.mod`, Makefile, and Dockerfile. Run commands from that root:
+Add server-specific processing code under `internal/` here when needed. Shared device API/config packages live in the repository-root `internal/`. Server code must not depend on `apps/tools`; Go's internal-package rules protect utility implementation packages.
+
+Run from the repository root:
 
 ```sh
-make list-apps
-make build
-make docker-build
+make list-apps GROUP=server
+make build GROUP=server
+make docker-build GROUP=server
+make docker-save GROUP=server
 go run ./apps/server/cmd/worker --once
 ```
 
-`server.apps` in the project TOML selects commands by name (`worker`, `clockctl`); `["*"]` or an omitted selection builds all commands. Native binaries go to `bin/`, Docker image exports go to `dist/`. Runtime images include the selected binary, runtime dependencies, and shared TOML defaults, not Berry apps. Compose mounts your config directory read-only. See [configuration](../../docs/configuration.md).
+`server.apps` in TOML selects commands within this group. Binaries are written to `bin/server/<name>`, images are tagged `tc002-apps/server/<name>:local`, and exported archives go to `dist/server/<name>.tar.gz`.
 
-Deploy persistent services on the VPS and run CLI tools on demand. See the [command reference](../../docs/commands.md) and [deployment guide](../../docs/deployment.md).
+Production `deploy/compose.yaml` contains VPS services only. Runtime images include the selected binary, runtime dependencies, and shared config defaults; Compose mounts your config directory read-only. Neither Berry source nor CLI/checking code is copied into the server build.
+
+For a future feature backed by a server and a screen, the [alpha integration design](../../docs/integrations.md) proposes a shared ID and a documented data contract. Automatic pairing and config wiring are not implemented yet.
+
+See [deployment](../../docs/deployment.md), [configuration](../../docs/configuration.md), and [utility apps](../tools/README.md).

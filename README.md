@@ -25,13 +25,21 @@ tc002-apps/
 │   │   ├── services/              Headless controllers and background providers
 │   │   ├── on-demand/             Menu-started tools and games
 │   │   └── assets/icons/          Shared clock icons (placeholder)
-│   └── server/                    ON A VPS / COMPUTER — Go programs
-│       ├── README.md              Server-app layout and build instructions
-│       ├── cmd/
-│       │   ├── worker/main.go     Periodic service entry point (placeholder)
-│       │   └── clockctl/          Notifications, Berry deployment, and app display control
-│       └── internal/awtrix/
-│           └── client.go          Shared AWTRIX NG HTTP client
+│   ├── server/                    ON A VPS — independent Go services
+│   │   ├── README.md              Server-only responsibilities and builds
+│   │   ├── cmd/worker/main.go     Periodic service entry point (placeholder)
+│   │   └── Dockerfile             Server sources + shared libraries only
+│   └── tools/                     ON A COMPUTER / ONE-OFF CONTAINER — utilities
+│       ├── README.md              Utility layout and Docker usage
+│       ├── cmd/clockctl/          Device-management and deployment CLI
+│       ├── internal/
+│       │   ├── build/             Go artifact selection and source discovery
+│       │   ├── clockapps/         Berry catalog and metadata validation
+│       │   └── clockcheck/        Execution/frame checking scenarios
+│       └── Dockerfile             Tool sources + shared libraries only
+├── internal/                      SHARED Go libraries
+│   ├── awtrix/                    HTTP API client; no display-checking loops
+│   └── config/                    TOML parsing/merging; no source discovery
 ├── configs/
 │   ├── config.toml                Shared clock, build, and runtime settings
 │   └── config.local.toml.example  Personal project config template
@@ -41,7 +49,7 @@ tc002-apps/
 ├── dev/                           LOCAL — virtual clock for development
 │   ├── compose.yaml               AWTRIX + Go tools, isolated from production
 │   └── Dockerfile.awtrix          Build the pinned headless AWTRIX engine
-├── tools/
+├── scripts/                       Shell entry points used by Make
 │   ├── select-apps.sh             Read Go build selection from project TOML
 │   └── check-clock.sh             Run disposable local Berry runtime checks
 ├── docs/
@@ -49,12 +57,12 @@ tc002-apps/
 │   ├── development.md             Virtual clock, commands, troubleshooting
 │   ├── commands.md                Go flags and environment variables
 │   ├── configuration.md           Unified TOML settings and personal overrides
+│   ├── integrations.md            How screen/server components form one feature
 │   ├── deployment.md              VPS deployment, image transfer, updates
 │   └── architecture.md            Runtime boundaries and data flow
 ├── .github/workflows/ci.yml        Go checks, builds, and production Docker builds
-├── Dockerfile                     Build one Go command into an Alpine image
 ├── Makefile                       Main entry point for build and dev commands
-├── go.mod                         Shared Go module for server-side code
+├── go.mod                         Shared Go module for all Go code
 ├── .gitignore                     Keep local settings and build output out of Git
 ├── .dockerignore                  Keep local settings and output out of build context
 ├── CONTRIBUTING.md                How to add apps and submit changes
@@ -62,8 +70,8 @@ tc002-apps/
 └── README.md                      Start here
 
 Generated locally (not committed):
-  bin/<app>                        Native Go binaries
-  dist/<app>.tar.gz                Docker images exported for transfer to a VPS
+  bin/<group>/<app>               Native binaries (server or tools)
+  dist/<group>/<app>.tar.gz       Exported images, separated by group
   configs/config.local.toml       Your clock, app selections, and runtime overrides
 ```
 
@@ -75,7 +83,9 @@ Generated locally (not committed):
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
 | Process data on my VPS | [Server apps](apps/server/README.md) | Add `apps/server/cmd/<name>/main.go` |
-| Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Set `server.apps` in your personal TOML, then run `make docker-save` |
+| Manage clocks or development workflows | [Utility apps](apps/tools/README.md) | Use `clockctl` or the Make commands |
+| Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Set `server.apps`, then run `make docker-save GROUP=server` |
+| Plan a screen/VPS integration (alpha) | [Integration design](docs/integrations.md) | Explore the ID/contract convention; automatic pairing is not implemented |
 | Contribute a change | [Contributing](CONTRIBUTING.md) | Follow the app layout and run the relevant checks |
 
 ### How the pieces connect
@@ -90,6 +100,7 @@ VPS / computer                            TC002 running AWTRIX NG
 
 Local development: dev/ runs headless AWTRIX in Docker instead of a TC002.
 Production: deploy/ runs Go services on the VPS; Berry stays on the clock.
+Management: apps/tools/ handles deployment, notifications, and local checks.
 HTTP notifications and on-device Berry apps work today; MQTT integration is planned.
 ```
 
@@ -119,22 +130,24 @@ make check
 make build
 go run ./apps/server/cmd/worker --once
 # Replace the address with your clock's reachable IP or hostname.
-AWTRIX_URL=http://192.168.1.50 go run ./apps/server/cmd/clockctl --text 'Hello from Go'
+AWTRIX_URL=http://192.168.1.50 go run ./apps/tools/cmd/clockctl --text 'Hello from Go'
 ```
 
 The notification command needs a reachable AWTRIX NG instance without API authentication. See [clock setup](docs/setup.md) and the [command reference](docs/commands.md) for flags and environment variables.
 
 ### Select what to build
 
-All settings use `configs/config.toml` and optional `configs/config.local.toml` overrides. Start with `cp configs/config.local.toml.example configs/config.local.toml`. Under `[server]`, set `apps = ["worker"]` to build a subset, or `["*"]` for all Go commands. Under `[clock.deploy]`, select `screens`, `services`, and `on_demand` independently. Each clock list accepts names, `["*"]` for all, or `[]` for none. See [Project configuration](docs/configuration.md).
+All settings use `configs/config.toml` and optional `configs/config.local.toml` overrides. Start with `cp configs/config.local.toml.example configs/config.local.toml`. `[server] apps` selects VPS commands; `[tools] apps` selects utility commands. Under `[clock.deploy]`, select `screens`, `services`, and `on_demand` independently. See [Project configuration](docs/configuration.md).
 
 ```sh
 make list-apps
 make build
 make docker-build
+make docker-build GROUP=server # Only VPS images
+make build GROUP=tools         # Only utility binaries
 ```
 
-Run `make docker-save` to export the selected images to `dist/<app>.tar.gz` for transfer to a VPS. See the [deployment guide](docs/deployment.md).
+`GROUP=all` is the default for Go build/export commands. Artifacts have qualified names such as `server/worker` and `tools/clockctl`. Run `make docker-save GROUP=server` to export VPS images to `dist/server/<app>.tar.gz`. See [deployment](docs/deployment.md) and [utility apps](apps/tools/README.md).
 
 This selection applies to `make build`, `make docker-build`, and `make docker-save`. It does not control which Compose services are started.
 

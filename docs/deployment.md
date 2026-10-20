@@ -32,13 +32,13 @@ Set the Go commands to build in your personal config:
 apps = ["worker"]
 ```
 
-`["*"]` or an omitted selection builds all Go commands. An empty list is an error.
+`["*"]` or an omitted selection builds all server commands. An empty server list is an error. Utilities are independently selected by `tools.apps` and are not production services.
 
 ```sh
-make list-apps
-make build         # Native binaries; requires Go
-make docker-build # Selected runtime images
-make docker-save  # Selected images as dist/<app>.tar.gz
+make list-apps GROUP=server
+make build GROUP=server        # bin/server/<app>; requires Go
+make docker-build GROUP=server # tc002-apps/server/<app>:local
+make docker-save GROUP=server  # dist/server/<app>.tar.gz
 ```
 
 `server.apps` selects Make build/export artifacts. It does not choose running services. Explicit deployment selects services separately:
@@ -48,21 +48,21 @@ sh deploy/deploy.sh worker
 # Once other services exist: sh deploy/deploy.sh weather monitor
 ```
 
-Only specified services are built and updated. Dependencies are not started and other containers are not removed. To build according to TOML on the VPS, use `make docker-build`, then `sh deploy/deploy.sh --no-build worker`. Direct Compose build commands select their services independently of TOML.
+Only specified services are built and updated. Dependencies are not started and other containers are not removed. To build according to TOML on the VPS, use `make docker-build GROUP=server`, then `sh deploy/deploy.sh --no-build worker`. Direct Compose build commands select their services independently of TOML.
 
-`clockctl` is a one-off CLI tool: use `compose run`, not a persistent service. For a new Go app, add `apps/server/cmd/<name>/main.go`; managed deployment also needs a Compose service using `APP: <name>` and image `tc002-apps/<name>:local`.
+For a new VPS app, add `apps/server/cmd/<name>/main.go`. Its build uses `apps/server/Dockerfile` with the repository root as context; managed deployment needs a Compose service with `APP: <name>` and image `tc002-apps/server/<name>:local`. The server Dockerfile copies no utility sources. `clockctl` is an independent [utility app](../apps/tools/README.md), not part of production Compose.
 
 ## Transfer prebuilt images
 
 On the build machine, configure `server.apps`, then export only the images you need:
 
 ```sh
-make docker-save
+make docker-save GROUP=server
 ```
 
 Prepare `/opt/tc002-apps/deploy` and `/opt/tc002-apps/configs` on the VPS. Transfer:
 
-- The selected `dist/<app>.tar.gz` archives.
+- The selected `dist/server/<app>.tar.gz` archives.
 - `deploy/compose.yaml` and `deploy/deploy.sh`.
 - `configs/config.toml` and your VPS-specific `configs/config.local.toml` (optional).
 
@@ -78,7 +78,7 @@ A full Git checkout, source code, and Go installation are not required. The arch
 Match the image architecture to the VPS. An ARM Mac builds ARM64 images by default. For x86-64, build on an x86-64 machine or use Docker with target-architecture emulation:
 
 ```sh
-DOCKER_DEFAULT_PLATFORM=linux/amd64 make docker-save
+DOCKER_DEFAULT_PLATFORM=linux/amd64 make docker-save GROUP=server
 ```
 
 Existing `bin/` and `dist/` files are not removed automatically. Transfer only the selected apps' current archives. For image-only rollback, load the previous archive and redeploy with `--no-build`.
@@ -91,11 +91,10 @@ Run from the repository root, or `/opt/tc002-apps` for an image-only deployment:
 docker compose -f deploy/compose.yaml logs -f --tail=100 worker
 docker compose -f deploy/compose.yaml ps
 docker compose -f deploy/compose.yaml run --rm --build worker --once
-docker compose -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from VPS'
 docker compose -f deploy/compose.yaml down
 ```
 
-For image-only deployment, load each needed image and omit `--build`. The worker logs its effective interval but remains a placeholder; it does not yet publish data. Notification commands use `clock.url` from the mounted TOML. Logs rotate with up to three files of 10 MB each.
+For image-only deployment, load each needed image and omit `--build`. The worker logs its effective interval but remains a placeholder; it does not yet publish data. Device-management utilities can be run separately if needed; they are not deployed by this Compose file. Logs rotate with up to three files of 10 MB each.
 
 ## Updating and rollback
 

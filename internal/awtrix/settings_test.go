@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 func TestConfigureScriptChecksRestartError(t *testing.T) {
@@ -35,7 +34,7 @@ func TestConfigureScriptChecksRestartError(t *testing.T) {
 	}
 }
 
-func TestHeadlessObservationDoesNotAccessDisplay(t *testing.T) {
+func TestHeadlessCannotBeShown(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/apps" || r.Method != "GET" {
 			t.Errorf("unexpected display access: %s %s", r.Method, r.URL.Path)
@@ -46,9 +45,5 @@ func TestHeadlessObservationDoesNotAccessDisplay(t *testing.T) {
 	client, _ := NewClient(server.URL)
 	if err := client.ShowScript(context.Background(), "policy"); err == nil {
 		t.Fatal("headless script was shown")
-	}
-	checks, err := client.ObserveHeadless(context.Background(), "policy", 1500*time.Millisecond)
-	if err != nil || checks < 1 {
-		t.Fatalf("checks=%d error=%v", checks, err)
 	}
 }

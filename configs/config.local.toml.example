@@ -16,3 +16,6 @@ url = "http://192.168.1.50"
 
 # [server.worker]
 # interval = "30s"
+
+# [tools]
+# apps = ["clockctl"] # Use [] to skip utility build artifacts.

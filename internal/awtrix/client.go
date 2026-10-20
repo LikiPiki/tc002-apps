@@ -141,10 +141,8 @@ func (c *Client) StopOnDemand(ctx context.Context, name string) error {
 	if !info.OnDemand {
 		return fmt.Errorf("script %s is not an on-demand app", name)
 	}
-	var device struct {
-		CurrentApp string `json:"currentApp"`
-	}
-	if err := c.request(ctx, http.MethodGet, "/api/v1/device", "", nil, &device); err != nil {
+	device, err := c.Device(ctx)
+	if err != nil {
 		return err
 	}
 	if device.CurrentApp != name {
@@ -233,13 +231,11 @@ func (c *Client) SetScriptEnabled(ctx context.Context, name string, enabled bool
 }
 
 func (c *Client) CheckScripting(ctx context.Context) error {
-	var device struct {
-		Running bool `json:"scriptingRunning"`
-	}
-	if err := c.request(ctx, http.MethodGet, "/api/v1/device", "", nil, &device); err != nil {
+	device, err := c.Device(ctx)
+	if err != nil {
 		return err
 	}
-	if !device.Running {
+	if !device.ScriptingRunning {
 		return fmt.Errorf("Berry scripting is not running on the target")
 	}
 	return nil

@@ -23,7 +23,7 @@ compose() {
 }
 
 compose config --quiet
-SERVICES=$(compose --profile tools config --services)
+SERVICES=$(compose config --services)
 for service in "$@"; do
     FOUND=false
     for known in $SERVICES; do

@@ -72,23 +72,6 @@ func TestAppSettingsMergeByField(t *testing.T) {
 	}
 }
 
-func TestServerSelectionAndDefaultDiscovery(t *testing.T) {
-	root := t.TempDir()
-	fixture(t, filepath.Join(root, "worker", "main.go"), "package main")
-	fixture(t, filepath.Join(root, "clockctl", "main.go"), "package main")
-	all, err := ServerApps(root, nil)
-	if err != nil || !reflect.DeepEqual(all, []string{"clockctl", "worker"}) {
-		t.Fatalf("unexpected discovery: %v, %v", all, err)
-	}
-	selected, err := ServerApps(root, []string{"worker", "worker"})
-	if err != nil || !reflect.DeepEqual(selected, []string{"worker"}) {
-		t.Fatalf("unexpected selection: %v, %v", selected, err)
-	}
-	if _, err := ServerApps(root, []string{"missing"}); err == nil {
-		t.Fatal("unknown command accepted")
-	}
-}
-
 func TestConfigPathEnvironmentAndExplicitOverride(t *testing.T) {
 	t.Setenv("TC002_CONFIG", "custom.toml")
 	t.Setenv("TC002_LOCAL_CONFIG", "")
@@ -99,5 +82,21 @@ func TestConfigPathEnvironmentAndExplicitOverride(t *testing.T) {
 	}
 	if *base != "explicit.toml" || *personal != "" {
 		t.Fatalf("unexpected paths: %q, %q", *base, *personal)
+	}
+}
+
+func TestToolSelectionDoesNotChangeServerSelection(t *testing.T) {
+	dir := t.TempDir()
+	base, personal := filepath.Join(dir, "base.toml"), filepath.Join(dir, "personal.toml")
+	fixture(t, base, "[server]\napps = [\"worker\"]\n[tools]\napps = [\"clockctl\"]\n")
+	fixture(t, personal, "[tools]\napps = []\n")
+	c, err := Load(base, personal)
+	if err != nil || c.Tools.Apps == nil || len(c.Tools.Apps) != 0 || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
+		t.Fatalf("tool selection changed server selection: %+v, %v", c, err)
+	}
+	fixture(t, personal, "[tools]\napps = [\"*\"]\n")
+	c, err = Load(base, personal)
+	if err != nil || c.Tools.Apps != nil || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
+		t.Fatalf("wildcard tools selection failed: %+v, %v", c, err)
 	}
 }
