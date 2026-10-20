@@ -61,11 +61,15 @@ func runScripts(command string, args []string) error {
 	base, personal := projectconfig.Paths(flags)
 	app := flags.String("app", "", "one clock app; deploy/list otherwise use config selection")
 	url := flags.String("url", "", "override target URL (otherwise AWTRIX_URL, then config)")
+	duration := flags.Duration("duration", 2*time.Second, "check: observe each app for this duration (minimum 250ms)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
+	}
+	if command == "check" && (*url == "" || *duration < 250*time.Millisecond) {
+		return fmt.Errorf("check requires an explicit --url and --duration >= 250ms; use make clock-check for an isolated local target")
 	}
 	config, err := projectconfig.Load(*base, *personal)
 	if err != nil {
@@ -117,7 +121,7 @@ func runScripts(command string, args []string) error {
 	if err != nil {
 		return err
 	}
-	if command == "deploy" {
+	if command == "deploy" || command == "check" {
 		if err := client.CheckScripting(context.Background()); err != nil {
 			return err
 		}
@@ -132,6 +136,19 @@ func runScripts(command string, args []string) error {
 		}
 		if err := client.CheckScript(context.Background(), script.name); err != nil {
 			return err
+		}
+		if command == "check" {
+			if err := client.ShowScript(context.Background(), script.name); err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), *duration+10*time.Second)
+			frames, err := client.ObserveScript(ctx, script.name, *duration)
+			cancel()
+			if err != nil {
+				return fmt.Errorf("check %s: %w", script.name, err)
+			}
+			fmt.Printf("Checked %s: %d frames, no runtime errors\n", script.name, frames)
+			continue
 		}
 		fmt.Printf("Installed %s\n", script.name)
 	}

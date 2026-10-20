@@ -38,6 +38,8 @@ CI currently builds the Go binaries and the Docker services declared in producti
 3. Run `make dev`, then `make clock-deploy APP=<name> LOCAL_CONFIG=` and `make clock-show APP=<name> LOCAL_CONFIG=`. Keep `AWTRIX_URL` unset so these commands use the shared local URL. Inspect the live output and runtime errors. You can also use the Scripts tab.
 4. Check hardware-dependent features on a physical TC002. The headless environment does not emulate all hardware.
 
+Run `make clock-check APP=<name>` for an isolated runtime smoke check before uploading to physical hardware. It checks installation and a short period of drawing without changing your regular dev instance. It requires Docker, not a host Go installation. See [runtime checks](docs/development.md#runtime-checks).
+
 ## Before opening a pull request
 
 - Run `make check` and `make build` for Go changes.

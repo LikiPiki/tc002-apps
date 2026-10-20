@@ -37,9 +37,10 @@ make clock-list                 # Target and selected files; no device access
 make clock-deploy               # Upload clock.apps from TOML
 make clock-deploy APP=mackerel  # Upload one app instead of the config selection
 make clock-show APP=mackerel    # Show an installed app and check its error status
+make clock-check APP=mackerel   # Test in disposable local AWTRIX, never the configured clock
 ```
 
-These Make commands require Go. For the local virtual clock without personal settings:
+The list/deploy/show Make commands require Go; `clock-check` requires Docker with Compose v2 and builds its Go runner in a container. For the regular local virtual clock without personal settings:
 
 ```sh
 make dev

@@ -1,6 +1,6 @@
 services:
   awtrix:
-    build:
+    build: &awtrix-build
       context: .
       dockerfile: Dockerfile.awtrix
     ports:
@@ -8,12 +8,35 @@ services:
     volumes:
       - awtrix-data:/data
     init: true
-    healthcheck:
+    healthcheck: &awtrix-health
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
       interval: 2s
       timeout: 3s
       retries: 30
       start_period: 10s
+
+  awtrix-check:
+    profiles: [checks]
+    image: tc002-apps/awtrix-check:local
+    build: *awtrix-build
+    init: true
+    tmpfs:
+      - /data:uid=10001,gid=10001,mode=0700
+    healthcheck: *awtrix-health
+
+  clock-check:
+    profiles: [checks]
+    image: tc002-apps/clockctl-check:local
+    build:
+      context: ..
+      args:
+        APP: clockctl
+    working_dir: /repo
+    volumes:
+      - ..:/repo:ro
+    depends_on:
+      awtrix-check:
+        condition: service_healthy
 
   clockctl:
     profiles: [tools]

@@ -42,7 +42,8 @@ tc002-apps/
 │   ├── compose.yaml               AWTRIX + Go tools, isolated from production
 │   └── Dockerfile.awtrix          Build the pinned headless AWTRIX engine
 ├── tools/
-│   └── select-apps.sh             Read app selection; absent config = all Go apps
+│   ├── select-apps.sh             Read Go build selection from project TOML
+│   └── check-clock.sh             Run disposable local Berry runtime checks
 ├── docs/
 │   ├── setup.md                   Connect to a physical TC002
 │   ├── development.md             Virtual clock, commands, troubleshooting
@@ -170,6 +171,8 @@ make dev-down
 ```
 
 The development environment builds the actual headless AWTRIX NG engine in an Alpine container. See the [local development guide](docs/development.md) for details and limitations. Run `make help` to list the main commands.
+
+For an automatic runtime smoke check, run `make clock-check` (or select one app with `APP=<name>`). It builds a disposable local AWTRIX, executes each app for a short observation window, and checks runtime errors and pixel frames. It does not use the physical-clock target or modify the regular dev instance. See [runtime checks](docs/development.md#runtime-checks).
 
 Further reading: [VPS deployment](docs/deployment.md), [clock setup](docs/setup.md), and [architecture](docs/architecture.md).
 

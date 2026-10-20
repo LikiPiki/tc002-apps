@@ -21,6 +21,7 @@ make clock-list                 # Preview the target and selected scripts; no de
 make clock-deploy               # Upload all selected Berry apps
 make clock-deploy APP=mackerel  # Upload only one app
 make clock-show APP=mackerel    # Show an installed app and check for runtime errors
+make clock-check APP=mackerel   # Execute in disposable local AWTRIX and inspect runtime status
 ```
 
 The shared `configs/config.toml` defaults to the local virtual clock and all Berry apps. Copy `configs/config.local.toml.example` to `configs/config.local.toml` and set `[clock] url` for your physical clock. The personal file is excluded from Git and Docker build context. See [configuration](../../docs/configuration.md) and [Berry deployment](../../docs/commands.md#berry-deployment).

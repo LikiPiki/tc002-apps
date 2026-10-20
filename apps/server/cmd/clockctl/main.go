@@ -15,7 +15,7 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "deploy", "show", "list", "server-list":
+		case "deploy", "show", "list", "server-list", "check":
 			if err := runScripts(os.Args[1], os.Args[2:]); err != nil {
 				if err == flag.ErrHelp {
 					return
@@ -27,7 +27,7 @@ func main() {
 		}
 	}
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|list|server-list [flags]")
+		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|list|server-list|check [flags]")
 		fmt.Fprintln(os.Stderr, "Run clockctl deploy --help for Berry upload options.")
 		flag.PrintDefaults()
 	}

@@ -3,13 +3,18 @@ TEXT ?= Hello from local Go
 CONFIG ?= configs/config.toml
 LOCAL_CONFIG ?= configs/config.local.toml
 APP ?=
-export TEXT CONFIG LOCAL_CONFIG APP
+CHECK_DURATION ?= 2s
+export TEXT CONFIG LOCAL_CONFIG APP CHECK_DURATION
 
-.PHONY: help check build docker-build docker-save list-apps dev dev-build dev-down dev-logs dev-notify dev-check clock-list clock-deploy clock-show
+.PHONY: help check build docker-build docker-save list-apps dev dev-build dev-down dev-logs dev-notify dev-check clock-list clock-deploy clock-show clock-check
 
 help:
 	@printf '%s\n' 'make list-apps      Show Go apps selected by server.apps in project TOML' 'make check         Go format, vet and tests' 'make build         Build selected Go binaries into bin/' 'make docker-build  Build selected Go images' 'make docker-save   Export selected images to dist/<app>.tar.gz' 'make dev           Build/start virtual AWTRIX at http://localhost:8080' 'make dev-notify    Send a notification (TEXT="...")' 'make dev-check     Build/start AWTRIX and send a smoke notification' 'make dev-logs      Follow AWTRIX logs' 'make dev-down      Stop dev environment, preserving data'
 	@printf '%s\n' 'make clock-list    Show target and selected Berry apps' 'make clock-deploy  Upload Berry apps (APP=<name> selects one)' 'make clock-show APP=<name>  Show an installed Berry app'
+	@printf '%s\n' 'make clock-check   Check Berry apps in disposable local AWTRIX (APP=<name>, CHECK_DURATION=2s)'
+
+clock-check:
+	sh tools/check-clock.sh
 
 clock-list clock-deploy clock-show:
 	go run ./apps/server/cmd/clockctl $(patsubst clock-%,%,$@) --config "$$CONFIG" --local-config "$$LOCAL_CONFIG" --app "$$APP"

@@ -15,6 +15,7 @@ Run these commands from the repository root:
 | `make clock-list` | Show the Berry deployment target and selected apps |
 | `make clock-deploy [APP=<name>]` | Upload selected Berry scripts to the configured target |
 | `make clock-show APP=<name>` | Show an installed script and check its runtime status |
+| `make clock-check [APP=<name>]` | Execute Berry apps in disposable local AWTRIX and check frames/errors |
 | `make dev` | Build and start virtual AWTRIX |
 | `make dev-build` | Build all development images without starting them |
 | `make dev-notify TEXT="Hello!"` | Send a notification from a Go container |
@@ -48,7 +49,22 @@ AWTRIX_URL=http://localhost:8080 go run ./apps/server/cmd/clockctl --text 'Nativ
 
 Upload Berry apps from `apps/clock/` with `make clock-deploy LOCAL_CONFIG=` and show one with `make clock-show APP=mackerel LOCAL_CONFIG=`. These commands use the shared local URL without personal overrides; leave `AWTRIX_URL` unset. You can also use the Scripts tab. Dev containers ignore personal overrides and use the shared project TOML; their virtual-clock network address is set by Compose. See [configuration](configuration.md) and [Berry deployment](commands.md#berry-deployment).
 
-## What dev-check verifies
+## Runtime checks
+
+### Berry runtime smoke check
+
+```sh
+make clock-check
+make clock-check APP=mackerel CHECK_DURATION=3s
+```
+
+This Docker-only command starts a separate, temporary AWTRIX with a 52 x 16 display, no published ports, and no persistent app data. It uses `clock.apps` from TOML (or `APP`) but always targets that sandbox, ignoring the configured physical-clock URL and `AWTRIX_URL` environment variable. Config paths must be inside the repository because it is mounted read-only into the check container.
+
+Each selected script is installed, shown, and sampled every 100ms for two seconds by default. The command checks script errors, the active app, and valid pixel frames. Static or black output is valid; this is not an image comparison or an animation-quality test. Apps must stay visible for the observation window. Delayed callbacks and hardware-dependent behavior still need separate checks.
+
+Temporary containers, networks, and data are removed on success or failure. The regular virtual-clock instance and physical TC002 are not modified by the command. Image downloads/build caches remain. This check is available locally and is not added to CI.
+
+### Go integration smoke check
 
 - The actual headless AWTRIX engine starts and responds to HTTP requests.
 - The worker builds and completes one run; it is currently a placeholder.
