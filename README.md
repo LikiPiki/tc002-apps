@@ -21,9 +21,9 @@ tc002-apps/
 │   ├── README.md                  Which code runs where
 │   ├── clock/                     ON THE TC002 — Berry scripts and assets
 │   │   ├── README.md              Clock-app layout and installation
-│   │   ├── <app>/                 Each on-device app follows this layout
-│   │   │   ├── main.be            Berry source uploaded to AWTRIX NG
-│   │   │   └── README.md          App-specific setup and usage
+│   │   ├── screens/               Visual apps in normal rotation
+│   │   ├── services/              Headless controllers and background providers
+│   │   ├── on-demand/             Menu-started tools and games
 │   │   └── assets/icons/          Shared clock icons (placeholder)
 │   └── server/                    ON A VPS / COMPUTER — Go programs
 │       ├── README.md              Server-app layout and build instructions
@@ -73,7 +73,7 @@ Generated locally (not committed):
 | --- | --- | --- |
 | Try it without a clock | [Local development](docs/development.md) | After cloning, run `make dev-check` and open http://localhost:8080 |
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
-| Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Add `apps/clock/<name>/main.be` and upload it through Scripts |
+| Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
 | Process data on my VPS | [Server apps](apps/server/README.md) | Add `apps/server/cmd/<name>/main.go` |
 | Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Set `server.apps` in your personal TOML, then run `make docker-save` |
 | Contribute a change | [Contributing](CONTRIBUTING.md) | Follow the app layout and run the relevant checks |
@@ -126,7 +126,7 @@ The notification command needs a reachable AWTRIX NG instance without API authen
 
 ### Select what to build
 
-All settings use `configs/config.toml` and optional `configs/config.local.toml` overrides. Start with `cp configs/config.local.toml.example configs/config.local.toml`. Under `[server]`, set `apps = ["worker"]` to build a subset, or `["*"]` for all Go commands. The default builds all commands. Under `[clock]`, `apps` selects Berry scripts independently. See [Project configuration](docs/configuration.md).
+All settings use `configs/config.toml` and optional `configs/config.local.toml` overrides. Start with `cp configs/config.local.toml.example configs/config.local.toml`. Under `[server]`, set `apps = ["worker"]` to build a subset, or `["*"]` for all Go commands. Under `[clock.deploy]`, select `screens`, `services`, and `on_demand` independently. Each clock list accepts names, `["*"]` for all, or `[]` for none. See [Project configuration](docs/configuration.md).
 
 ```sh
 make list-apps
@@ -144,11 +144,14 @@ This selection applies to `make build`, `make docker-build`, and `make docker-sa
 cp configs/config.local.toml.example configs/config.local.toml
 # Set [clock] url in configs/config.local.toml.
 make clock-list
-make clock-deploy          # All Berry apps, or the list selected in clock config
+make clock-deploy          # Apps selected by category in TOML
+make clock-deploy KIND=services
 make clock-show APP=<name>
+make clock-start APP=<tool> # Start an installed on-demand app
+make clock-stop APP=<tool>  # End its session
 ```
 
-Use `make clock-deploy APP=<name>` to update just one app. Shared TOML defaults to the local virtual clock; personal overrides are excluded from Git. To use shared defaults alone, pass `LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for error checks.
+Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Settings live in `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>`. Shared TOML defaults to the local virtual clock; personal overrides are excluded from Git. To use shared defaults alone, pass `LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for error checks.
 
 ## Docker
 

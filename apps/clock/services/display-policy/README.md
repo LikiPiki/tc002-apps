@@ -7,8 +7,8 @@ A headless Berry controller that switches the TC002 display on and off using the
 In your personal project TOML:
 
 ```toml
-[clock.schedule]
-enabled = true
+[clock.services.display-policy]
+schedule_enabled = true
 on = "10:00"
 off = "20:00"
 ```

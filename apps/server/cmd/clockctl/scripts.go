@@ -1,67 +1,25 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/apps/server/internal/clockapps"
 	projectconfig "github.com/LikiPiki/tc002-apps/apps/server/internal/config"
 )
-
-type script struct {
-	name   string
-	path   string
-	source []byte
-}
-
-func selectScripts(root string, names []string) ([]script, error) {
-	if names == nil {
-		paths, err := filepath.Glob(filepath.Join(root, "*", "main.be"))
-		if err != nil {
-			return nil, err
-		}
-		for _, path := range paths {
-			names = append(names, filepath.Base(filepath.Dir(path)))
-		}
-	}
-	var scripts []script
-	seen := make(map[string]bool)
-	for _, name := range names {
-		if err := awtrix.ValidateAppName(name); err != nil {
-			return nil, err
-		}
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		path := filepath.Join(root, name, "main.be")
-		source, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		if len(bytes.TrimSpace(source)) == 0 {
-			return nil, fmt.Errorf("%s: empty script", path)
-		}
-		scripts = append(scripts, script{name, path, source})
-	}
-	if len(scripts) == 0 {
-		return nil, fmt.Errorf("no Berry scripts selected in %s", root)
-	}
-	return scripts, nil
-}
 
 func runScripts(command string, args []string) error {
 	flags := flag.NewFlagSet("clockctl "+command, flag.ContinueOnError)
 	base, personal := projectconfig.Paths(flags)
-	app := flags.String("app", "", "one clock app; deploy/list otherwise use config selection")
+	app := flags.String("app", "", "one clock app by unique install name")
+	kind := flags.String("kind", "all", "all, screens, services, or on-demand")
 	url := flags.String("url", "", "override target URL (otherwise AWTRIX_URL, then config)")
-	duration := flags.Duration("duration", 2*time.Second, "check: observe each app for this duration (minimum 250ms)")
+	duration := flags.Duration("duration", 2*time.Second, "check: observation duration (headless requires at least 1500ms)")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -69,7 +27,7 @@ func runScripts(command string, args []string) error {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
 	}
 	if command == "check" && (*url == "" || *duration < 250*time.Millisecond) {
-		return fmt.Errorf("check requires an explicit --url and --duration >= 250ms; use make clock-check for an isolated local target")
+		return fmt.Errorf("check requires an explicit --url and --duration >= 250ms; use make clock-check")
 	}
 	config, err := projectconfig.Load(*base, *personal)
 	if err != nil {
@@ -96,12 +54,26 @@ func runScripts(command string, args []string) error {
 		return err
 	}
 	fmt.Printf("Target: %s\n", config.Clock.URL)
-	if command == "show" {
+	if command == "show" || command == "start" || command == "stop" {
 		if *app == "" {
-			return fmt.Errorf("show requires --app (make clock-show APP=<name>)")
+			return fmt.Errorf("%s requires APP=<name>", command)
 		}
 		if err := client.CheckScripting(context.Background()); err != nil {
 			return err
+		}
+		info, err := client.Script(context.Background(), *app)
+		if err != nil {
+			return err
+		}
+		if command == "stop" {
+			if err := client.StopOnDemand(context.Background(), *app); err != nil {
+				return err
+			}
+			fmt.Printf("Stopped %s\n", *app)
+			return nil
+		}
+		if (command == "start") != info.OnDemand {
+			return fmt.Errorf("use clock-start for on-demand apps and clock-show for rotating screens")
 		}
 		if err := client.ShowScript(context.Background(), *app); err != nil {
 			return err
@@ -113,75 +85,75 @@ func runScripts(command string, args []string) error {
 		fmt.Printf("Showing %s\n", *app)
 		return nil
 	}
-	if *app != "" {
-		config.Clock.Apps = []string{*app}
-	}
-	// Read every selected source before making any writes to the device.
-	scripts, err := selectScripts("apps/clock", config.Clock.Apps)
+	scripts, err := clockapps.Select("apps/clock", config.Clock, *app, *kind)
 	if err != nil {
 		return err
 	}
-	if command == "deploy" || command == "check" {
+	if len(scripts) == 0 {
+		fmt.Println("No clock apps selected")
+		return nil
+	}
+	if command != "list" {
 		if err := client.CheckScripting(context.Background()); err != nil {
 			return err
 		}
 	}
 	for _, script := range scripts {
 		if command == "list" {
-			fmt.Printf("%s: %s\n", script.name, script.path)
+			fmt.Printf("%s/%s: %s\n", script.Kind, script.Name, script.Path)
 			continue
 		}
-		if err := client.InstallScript(context.Background(), script.name, script.source); err != nil {
-			return fmt.Errorf("%s: %w", script.name, err)
+		if err := client.InstallScript(context.Background(), script.Name, script.Source); err != nil {
+			return fmt.Errorf("%s: %w", script.Name, err)
 		}
-		if script.name == "display-policy" {
-			settings := map[string]any{
-				"enabled": config.Clock.Schedule.Enabled,
-				"on":      config.Clock.Schedule.On,
-				"off":     config.Clock.Schedule.Off,
-			}
-			if err := client.ConfigureScript(context.Background(), script.name, settings); err != nil {
-				return fmt.Errorf("configure %s: %w", script.name, err)
+		if len(script.Settings) != 0 {
+			if err := client.ConfigureScript(context.Background(), script.Name, script.Settings); err != nil {
+				return fmt.Errorf("configure %s: %w", script.Name, err)
 			}
 		}
-		if err := client.CheckScript(context.Background(), script.name); err != nil {
+		if err := client.CheckScript(context.Background(), script.Name); err != nil {
 			return err
 		}
 		if command == "check" {
-			info, err := client.Script(context.Background(), script.name)
-			if err != nil {
-				return err
+			if err := checkScript(client, script, *duration); err != nil {
+				return fmt.Errorf("check %s: %w", script.Name, err)
 			}
-			if info.Headless {
-				ctx, cancel := context.WithTimeout(context.Background(), *duration+10*time.Second)
-				checks, err := client.ObserveHeadless(ctx, script.name, *duration)
-				cancel()
-				if err != nil {
-					return fmt.Errorf("check %s: %w", script.name, err)
-				}
-				// Prevent controllers from changing display power during later visual checks.
-				if err := client.SetScriptEnabled(context.Background(), script.name, false); err != nil {
-					return err
-				}
-				fmt.Printf("Checked %s: headless, %d status checks, no runtime errors\n", script.name, checks)
-				continue
-			}
-			if err := client.SetDisplayPower(context.Background(), true); err != nil {
-				return err
-			}
-			if err := client.ShowScript(context.Background(), script.name); err != nil {
-				return err
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), *duration+10*time.Second)
-			frames, err := client.ObserveScript(ctx, script.name, *duration)
-			cancel()
-			if err != nil {
-				return fmt.Errorf("check %s: %w", script.name, err)
-			}
-			fmt.Printf("Checked %s: %d frames, no runtime errors\n", script.name, frames)
-			continue
+		} else {
+			fmt.Printf("Installed %s/%s\n", script.Kind, script.Name)
 		}
-		fmt.Printf("Installed %s\n", script.name)
 	}
+	return nil
+}
+
+func checkScript(client *awtrix.Client, script clockapps.Script, duration time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), duration+10*time.Second)
+	defer cancel()
+	if script.Kind == "services" {
+		checks, err := client.ObserveHeadless(ctx, script.Name, duration)
+		if err != nil {
+			return err
+		}
+		if err := client.SetScriptEnabled(ctx, script.Name, false); err != nil {
+			return err
+		}
+		fmt.Printf("Checked services/%s: %d status checks, no runtime errors\n", script.Name, checks)
+		return nil
+	}
+	if err := client.SetDisplayPower(ctx, true); err != nil {
+		return err
+	}
+	if err := client.ShowScript(ctx, script.Name); err != nil {
+		return err
+	}
+	frames, err := client.ObserveScript(ctx, script.Name, duration)
+	if err != nil {
+		return err
+	}
+	if script.Kind == "on-demand" {
+		if err := client.StopOnDemand(ctx, script.Name); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("Checked %s/%s: %d frames, no runtime errors\n", script.Kind, script.Name, frames)
 	return nil
 }

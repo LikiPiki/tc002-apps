@@ -122,6 +122,7 @@ type ScriptInfo struct {
 	Origin   string          `json:"origin"`
 	Enabled  bool            `json:"enabled"`
 	Headless bool            `json:"headless"`
+	OnDemand bool            `json:"ondemand"`
 	Error    json.RawMessage `json:"error"`
 }
 
@@ -130,6 +131,26 @@ func (app ScriptInfo) check() error {
 		return fmt.Errorf("script %s: enabled=%v error=%s", app.Name, app.Enabled, app.Error)
 	}
 	return nil
+}
+
+func (c *Client) StopOnDemand(ctx context.Context, name string) error {
+	info, err := c.Script(ctx, name)
+	if err != nil {
+		return err
+	}
+	if !info.OnDemand {
+		return fmt.Errorf("script %s is not an on-demand app", name)
+	}
+	var device struct {
+		CurrentApp string `json:"currentApp"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/api/v1/device", "", nil, &device); err != nil {
+		return err
+	}
+	if device.CurrentApp != name {
+		return fmt.Errorf("on-demand app %s is not running", name)
+	}
+	return c.confirmedCommand(ctx, http.MethodPost, "/api/v1/apps/next", nil)
 }
 
 func (c *Client) Script(ctx context.Context, name string) (ScriptInfo, error) {

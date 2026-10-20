@@ -18,7 +18,7 @@ Alternatively, from the repository root:
 ```sh
 curl --fail-with-body -X PUT http://localhost:8080/api/v1/apps/script/cigar \
   -H 'Content-Type: text/plain' \
-  --data-binary @apps/clock/cigar/main.be
+  --data-binary @apps/clock/screens/cigar/main.be
 
 curl --fail-with-body -X PUT http://localhost:8080/api/v1/apps/active \
   -H 'Content-Type: application/json' \

@@ -13,7 +13,7 @@ From the repository root, run `make dev`, then upload:
 ```sh
 curl --fail-with-body -X PUT http://localhost:8080/api/v1/apps/script/mackerel \
   -H 'Content-Type: text/plain' \
-  --data-binary @apps/clock/mackerel/main.be
+  --data-binary @apps/clock/screens/mackerel/main.be
 
 curl --fail-with-body -X PUT http://localhost:8080/api/v1/apps/active \
   -H 'Content-Type: application/json' \

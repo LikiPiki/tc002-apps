@@ -14,33 +14,30 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+type AppSettings map[string]map[string]any
+
+type ClockDeploy struct {
+	Screens  []string
+	Services []string
+	OnDemand []string
+}
+
+type ClockConfig struct {
+	URL      string
+	Deploy   ClockDeploy
+	Screens  AppSettings
+	Services AppSettings
+	OnDemand AppSettings
+}
+
 type Config struct {
-	Clock struct {
-		URL      string
-		Apps     []string
-		Schedule DisplaySchedule
-	}
+	Clock  ClockConfig
 	Server struct {
 		Apps   []string
 		Worker struct{ Interval string }
 	}
 }
 
-type DisplaySchedule struct {
-	Enabled bool
-	On      string
-	Off     string
-}
-
-func validateScheduleTime(value string) error {
-	t, err := time.Parse("15:04", value)
-	if err != nil || t.Format("15:04") != value {
-		return fmt.Errorf("must use HH:MM between 00:00 and 23:59")
-	}
-	return nil
-}
-
-// Paths registers the same config flags for every command, including containers.
 func Paths(flags *flag.FlagSet) (base, personal *string) {
 	basePath, ok := os.LookupEnv("TC002_CONFIG")
 	if !ok {
@@ -55,11 +52,12 @@ func Paths(flags *flag.FlagSet) (base, personal *string) {
 }
 
 func Load(base, personal string) (Config, error) {
-	var config Config
-	config.Clock.URL = "http://localhost:8080"
-	config.Clock.Schedule.On = "10:00"
-	config.Clock.Schedule.Off = "20:00"
-	config.Server.Worker.Interval = "1m"
+	var c Config
+	c.Clock.URL = "http://localhost:8080"
+	c.Clock.Deploy.Services = []string{}
+	c.Clock.Deploy.OnDemand = []string{}
+	c.Clock.Screens, c.Clock.Services, c.Clock.OnDemand = AppSettings{}, AppSettings{}, AppSettings{}
+	c.Server.Worker.Interval = "1m"
 	for index, path := range []string{base, personal} {
 		if index == 1 && path == "" {
 			continue
@@ -69,17 +67,19 @@ func Load(base, personal string) (Config, error) {
 			continue
 		}
 		if err != nil {
-			return config, err
+			return c, err
 		}
 		var fields struct {
 			Clock struct {
-				URL      *string   `toml:"url"`
-				Apps     *[]string `toml:"apps"`
-				Schedule struct {
-					Enabled *bool   `toml:"enabled"`
-					On      *string `toml:"on"`
-					Off     *string `toml:"off"`
-				} `toml:"schedule"`
+				URL    *string `toml:"url"`
+				Deploy struct {
+					Screens  *[]string `toml:"screens"`
+					Services *[]string `toml:"services"`
+					OnDemand *[]string `toml:"on_demand"`
+				} `toml:"deploy"`
+				Screens  AppSettings `toml:"screens"`
+				Services AppSettings `toml:"services"`
+				OnDemand AppSettings `toml:"on_demand"`
 			} `toml:"clock"`
 			Server struct {
 				Apps   *[]string `toml:"apps"`
@@ -91,54 +91,81 @@ func Load(base, personal string) (Config, error) {
 		decoder := toml.NewDecoder(bytes.NewReader(data))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&fields); err != nil {
-			return config, fmt.Errorf("%s: %w", path, err)
+			return c, fmt.Errorf("%s: %w", path, err)
 		}
 		if fields.Clock.URL != nil {
-			config.Clock.URL = *fields.Clock.URL
+			c.Clock.URL = *fields.Clock.URL
 		}
-		if fields.Clock.Schedule.Enabled != nil {
-			config.Clock.Schedule.Enabled = *fields.Clock.Schedule.Enabled
+		for _, field := range []struct {
+			name string
+			src  *[]string
+			dst  *[]string
+		}{
+			{"screens", fields.Clock.Deploy.Screens, &c.Clock.Deploy.Screens},
+			{"services", fields.Clock.Deploy.Services, &c.Clock.Deploy.Services},
+			{"on_demand", fields.Clock.Deploy.OnDemand, &c.Clock.Deploy.OnDemand},
+		} {
+			if field.src == nil {
+				continue
+			}
+			if len(*field.src) == 0 {
+				*field.dst = []string{}
+			} else if *field.dst, err = selection(*field.src); err != nil {
+				return c, fmt.Errorf("%s: clock.deploy.%s: %w", path, field.name, err)
+			}
 		}
-		if fields.Clock.Schedule.On != nil {
-			config.Clock.Schedule.On = *fields.Clock.Schedule.On
-		}
-		if fields.Clock.Schedule.Off != nil {
-			config.Clock.Schedule.Off = *fields.Clock.Schedule.Off
-		}
-		if fields.Clock.Apps != nil {
-			config.Clock.Apps, err = selection(*fields.Clock.Apps)
-			if err != nil {
-				return config, fmt.Errorf("%s: clock.apps: %w", path, err)
+		for _, field := range []struct {
+			name string
+			src  AppSettings
+			dst  AppSettings
+		}{
+			{"screens", fields.Clock.Screens, c.Clock.Screens},
+			{"services", fields.Clock.Services, c.Clock.Services},
+			{"on_demand", fields.Clock.OnDemand, c.Clock.OnDemand},
+		} {
+			if err := mergeSettings(field.dst, field.src); err != nil {
+				return c, fmt.Errorf("%s: clock.%s: %w", path, field.name, err)
 			}
 		}
 		if fields.Server.Apps != nil {
-			config.Server.Apps, err = selection(*fields.Server.Apps)
+			c.Server.Apps, err = selection(*fields.Server.Apps)
 			if err != nil {
-				return config, fmt.Errorf("%s: server.apps: %w", path, err)
+				return c, fmt.Errorf("%s: server.apps: %w", path, err)
 			}
 		}
 		if fields.Server.Worker.Interval != nil {
-			config.Server.Worker.Interval = *fields.Server.Worker.Interval
+			c.Server.Worker.Interval = *fields.Server.Worker.Interval
 		}
 	}
-	u, err := url.Parse(config.Clock.URL)
+	u, err := url.Parse(c.Clock.URL)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.RawQuery != "" || u.Fragment != "" {
-		return config, fmt.Errorf("clock.url must be an absolute HTTP(S) base URL without query or fragment")
+		return c, fmt.Errorf("clock.url must be an absolute HTTP(S) base URL without query or fragment")
 	}
-	interval, err := time.ParseDuration(config.Server.Worker.Interval)
+	interval, err := time.ParseDuration(c.Server.Worker.Interval)
 	if err != nil || interval <= 0 {
-		return config, fmt.Errorf("server.worker.interval must be a positive Go duration")
+		return c, fmt.Errorf("server.worker.interval must be a positive Go duration")
 	}
-	if err := validateScheduleTime(config.Clock.Schedule.On); err != nil {
-		return config, fmt.Errorf("clock.schedule.on: %w", err)
+	return c, nil
+}
+
+func mergeSettings(dst, src AppSettings) error {
+	for name, fields := range src {
+		if !namePattern.MatchString(name) || len(name) > 32 {
+			return fmt.Errorf("invalid app name %q", name)
+		}
+		if dst[name] == nil {
+			dst[name] = map[string]any{}
+		}
+		for key, value := range fields {
+			switch value.(type) {
+			case string, bool, int64, float64:
+				dst[name][key] = value
+			default:
+				return fmt.Errorf("%s.%s must be a scalar app setting", name, key)
+			}
+		}
 	}
-	if err := validateScheduleTime(config.Clock.Schedule.Off); err != nil {
-		return config, fmt.Errorf("clock.schedule.off: %w", err)
-	}
-	if config.Clock.Schedule.On == config.Clock.Schedule.Off {
-		return config, fmt.Errorf("clock.schedule.on and off must be different")
-	}
-	return config, nil
+	return nil
 }
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)

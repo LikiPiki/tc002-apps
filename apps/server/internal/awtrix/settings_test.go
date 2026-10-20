@@ -17,7 +17,7 @@ func TestConfigureScriptChecksRestartError(t *testing.T) {
 			if r.Method != "PATCH" || r.URL.Path != "/api/v1/apps/display-policy/config" {
 				t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 			}
-			if err := json.NewDecoder(r.Body).Decode(&settings); err != nil || settings["enabled"] != true || settings["on"] != "10:00" {
+			if err := json.NewDecoder(r.Body).Decode(&settings); err != nil || settings["schedule_enabled"] != true || settings["on"] != "10:00" {
 				t.Errorf("unexpected settings: %v, %v", settings, err)
 			}
 			if failed {
@@ -27,7 +27,7 @@ func TestConfigureScriptChecksRestartError(t *testing.T) {
 			}
 		}))
 		client, _ := NewClient(server.URL)
-		err := client.ConfigureScript(context.Background(), "display-policy", map[string]any{"enabled": true, "on": "10:00"})
+		err := client.ConfigureScript(context.Background(), "display-policy", map[string]any{"schedule_enabled": true, "on": "10:00"})
 		server.Close()
 		if (err != nil) != failed {
 			t.Fatalf("failed=%v error=%v", failed, err)

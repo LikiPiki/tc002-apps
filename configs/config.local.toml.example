@@ -1,10 +1,13 @@
 # Copy to config.local.toml. Only specified fields override shared defaults.
 [clock]
 url = "http://192.168.1.50"
-# apps = ["cigar", "mackerel"]
+# [clock.deploy]
+# screens = ["cigar", "mackerel"]
+# services = ["display-policy"]
+# on_demand = []
 
-# [clock.schedule]
-# enabled = true
+# [clock.services.display-policy]
+# schedule_enabled = true
 # on = "10:00"
 # off = "20:00"
 

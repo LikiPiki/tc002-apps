@@ -1,10 +1,13 @@
 # Shared project defaults. Override selected fields in config.local.toml.
 [clock]
 url = "http://localhost:8080"
-apps = ["*"] # Berry apps to upload from apps/clock/
+[clock.deploy]
+screens = ["*"]
+services = ["display-policy"]
+on_demand = ["*"] # Installed in the device menu; not started by deployment.
 
-[clock.schedule]
-enabled = false # Opt in locally to automatic display power control.
+[clock.services.display-policy]
+schedule_enabled = false # Opt in locally to automatic display power control.
 on = "10:00"    # Inclusive, in the clock's configured local timezone.
 off = "20:00"   # Exclusive; overnight windows are supported.
 

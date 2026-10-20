@@ -25,4 +25,4 @@ compose run --rm --no-deps clock-check check \
     --url http://awtrix-check:8080 \
     --config "${CONFIG:-configs/config.toml}" \
     --local-config "${LOCAL_CONFIG-configs/config.local.toml}" \
-    --app "${APP:-}" --duration "${CHECK_DURATION:-2s}"
+    --app "${APP:-}" --kind "${KIND:-all}" --duration "${CHECK_DURATION:-2s}"

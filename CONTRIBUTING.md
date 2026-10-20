@@ -33,12 +33,14 @@ CI currently builds the Go binaries and the Docker services declared in producti
 
 ## Adding a Berry app
 
-1. Add `apps/clock/<name>/main.be` and a `README.md` describing its purpose, supported AWTRIX version, settings, and expected input data. These apps run inside AWTRIX NG on the clock.
+1. Choose `screens`, `services`, or `on-demand` and add `apps/clock/<kind>/<name>/main.be` with a README describing purpose, AWTRIX compatibility, settings, and inputs. Services require `# @headless true`; on-demand tools require `# @ondemand`. Ordinary screens use neither marker. Names must be unique across categories.
 2. Place shared icons in `apps/clock/assets/icons/`, with source and license information. Keep app-specific assets alongside the app.
 3. Run `make dev`, then `make clock-deploy APP=<name> LOCAL_CONFIG=` and `make clock-show APP=<name> LOCAL_CONFIG=`. Keep `AWTRIX_URL` unset so these commands use the shared local URL. Inspect the live output and runtime errors. You can also use the Scripts tab.
 4. Check hardware-dependent features on a physical TC002. The headless environment does not emulate all hardware.
 
 Run `make clock-check APP=<name>` for an isolated runtime smoke check before uploading to physical hardware. It checks installation and a short period of drawing without changing your regular dev instance. It requires Docker, not a host Go installation. See [runtime checks](docs/development.md#runtime-checks).
+
+Register per-app settings under `clock.<category>.<name>` in TOML (`on_demand` for that category) and declare matching `@config` fields in the Berry header. The generic CLI validates names/basic types and passes settings to AWTRIX; domain validation belongs in the app. Add tests when changing the catalog or lifecycle rules. See [architecture](docs/architecture.md).
 
 ## Before opening a pull request
 

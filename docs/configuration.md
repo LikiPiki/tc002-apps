@@ -1,24 +1,28 @@
 # Project configuration
 
-All project settings use one TOML schema and one Go loader, for native commands, Make builds, and containers:
+All project settings use one TOML schema and one Go loader:
 
 ```text
 configs/config.toml                Shared defaults, committed
-configs/config.local.toml.example  Personal config template, committed
+configs/config.local.toml.example  Personal override template, committed
 configs/config.local.toml          Optional personal overrides, ignored by Git
 ```
 
-The shared file is required. The personal file may be absent. Unknown fields, malformed TOML, empty app lists, and invalid durations fail with an error.
+The shared file is required. Personal settings may be absent. Unknown project fields, malformed TOML, invalid durations, and incorrect selection types fail with an error.
 
-## Shared defaults
+## Shared layout
 
 ```toml
 [clock]
 url = "http://localhost:8080"
-apps = ["*"]
 
-[clock.schedule]
-enabled = false
+[clock.deploy]
+screens = ["*"]
+services = ["display-policy"]
+on_demand = ["*"]
+
+[clock.services.display-policy]
+schedule_enabled = false
 on = "10:00"
 off = "20:00"
 
@@ -29,15 +33,22 @@ apps = ["*"]
 interval = "1m"
 ```
 
-| Setting | Used by |
-| --- | --- |
-| `clock.url` | Notifications, Berry deployment, and display selection |
-| `clock.apps` | Berry scripts selected by `clock-list` and `clock-deploy` |
-| `clock.schedule` | Persisted settings applied when deploying `display-policy`; defaults to disabled, 10:00-20:00 |
-| `server.apps` | Go commands selected by `list-apps`, `build`, `docker-build`, and `docker-save` |
-| `server.worker.interval` | Period between worker runs; a positive Go duration such as `30s` or `5m` |
+## Selection versus settings
 
-An omitted app selection or `["*"]` means all apps. Named lists replace the selection: `clock.apps` names directories under `apps/clock/`, and `server.apps` names commands under `apps/server/cmd/`. A wildcard must be used alone. An empty list is an error. Missing source files fail before upload or build.
+`clock.deploy` selects **what to upload** from `apps/clock/screens/`, `services/`, and `on-demand/`. Each list accepts names, `["*"]` for all discovered apps, or `[]` for none. If no config specifies a category, screens default to all, services and on-demand default to none. Shared defaults explicitly select all current screens and the display service. The on-demand category is initially empty, so selecting all is a valid no-op.
+
+`clock.screens.<name>`, `clock.services.<name>`, and `clock.on_demand.<name>` define **how an app behaves**. Keys must match that app's `@config` declarations. Settings are scalar strings, booleans, or numbers. For example:
+
+```toml
+[clock.services.display-policy]
+schedule_enabled = true
+on = "10:00"
+off = "20:00"
+```
+
+The CLI validates declared names/basic types, then patches settings through AWTRIX's API after uploading source. AWTRIX and the app validate constraints and semantics. Invalid settings can leave the installed app reporting an error; source and settings are separate updates. Settings edited through the web UI are overwritten by configured TOML values on the next deployment. See [Display Policy](../apps/clock/services/display-policy/README.md).
+
+`server.apps` selects Go commands under `apps/server/cmd/` for Make build/export commands. Omission or `["*"]` selects all; an empty server list remains an error. This does not select running Compose services. `server.worker.interval` sets a positive Go duration, such as `30s` or `5m`.
 
 ## Personal overrides
 
@@ -45,48 +56,49 @@ An omitted app selection or `["*"]` means all apps. Named lists replace the sele
 cp configs/config.local.toml.example configs/config.local.toml
 ```
 
-For example:
+Override only the values you need:
 
 ```toml
 [clock]
 url = "http://192.168.1.50"
-apps = ["cigar", "mackerel"]
+
+[clock.deploy]
+screens = ["cigar", "mackerel"]
+services = ["display-policy"]
+on_demand = []
+
+[clock.services.display-policy]
+schedule_enabled = true
 
 [server]
 apps = ["worker"]
-
-[server.worker]
-interval = "30s"
 ```
 
-Only specified fields override shared defaults, including within nested tables. Arrays replace rather than append. To reset a selection to all apps, use `apps = ["*"]` in the relevant table.
+Selections replace rather than append. App settings merge by field: changing `schedule_enabled` preserves the shared `on`/`off` values. The personal file is excluded from Git and Docker build context.
 
-The personal file is excluded from Git and Docker build context. Your settings are never baked into the image.
-
-To activate the autonomous display scheduler, set `[clock.schedule] enabled = true` in your personal config and deploy `display-policy`. It uses the timezone configured on AWTRIX. Times must use `HH:MM`; on is inclusive, off is exclusive, overnight intervals are allowed, and equal endpoints are rejected. See the [app README](../apps/clock/display-policy/README.md) for manual overrides and unknown-time behavior.
-
-## Paths and explicit overrides
-
-Make commands accept `CONFIG` and `LOCAL_CONFIG`:
+## Commands and paths
 
 ```sh
 make clock-list
-make list-apps
+make clock-list KIND=services
 make clock-deploy APP=mackerel
-make clock-deploy LOCAL_CONFIG=  # Shared local-clock defaults only
+make clock-deploy KIND=on-demand
+make clock-deploy LOCAL_CONFIG=  # Shared local defaults only
 make build LOCAL_CONFIG="$HOME/.config/tc002/vps.toml"
 ```
 
-Go commands accept the same paths via `--config` and `--local-config`. Their default paths can also be changed with `TC002_CONFIG` and `TC002_LOCAL_CONFIG`. An explicitly empty local-config path disables personal overrides.
+Make accepts `CONFIG` and `LOCAL_CONFIG`. Native Go commands accept `--config` and `--local-config`; environment variables `TC002_CONFIG` and `TC002_LOCAL_CONFIG` change their default paths. An explicitly empty personal path disables overrides. `APP` overrides the app selection; `KIND` filters or validates its category.
 
-For clock operations, URL precedence is explicit `--url` > `AWTRIX_URL` > personal TOML > shared TOML. For the worker, explicit `--interval` overrides TOML. These overrides are optional conveniences, not a second config file. Keep `AWTRIX_URL` unset when using the URL from TOML.
+Clock URL precedence is explicit `--url` > `AWTRIX_URL` > personal TOML > shared TOML. An explicit worker `--interval` overrides TOML. Leave `AWTRIX_URL` unset when relying on config URLs.
 
-## Docker
+## Docker and checks
 
-Production Compose mounts `configs/` at `/app/configs` read-only. Both `worker` and `clockctl` read the same files directly. No `.env` file is needed. The image includes only the shared defaults, so it can also run without the mount.
+Production Compose mounts `configs/` read-only. Images include only shared defaults, not personal settings. No `.env` file is needed. Dev containers ignore personal overrides and use the internal virtual-clock address `http://awtrix:8080`; the host browser uses http://localhost:8080.
 
-The dev Compose environment ignores personal overrides to avoid sending development traffic to your physical clock. It uses the shared TOML and sets `AWTRIX_URL=http://awtrix:8080` for the container-only network address of the virtual clock. On your computer, the same service is available at http://localhost:8080.
+`clock-check` always uses a disposable local target, but respects the configured category selections and app settings. Its config files must be inside the mounted repository. Native commands can read external profiles. Docker-only builds use a containerized config reader if host Go is absent.
 
-Native builds need Go. Docker-only builds use a containerized `clockctl server-list` to read TOML when Go is unavailable; only selected app images are exported by `make docker-save`. This fallback mounts the repository, so config files must be inside it. Native commands can also read profiles outside the repository.
+For runtime config changes, restart the Go service. For Berry config changes, deploy the relevant app again. Deployment does not remove apps excluded by a new selection; deactivate or delete them explicitly on AWTRIX.
 
-`server.apps` selects build/export artifacts, not running Compose services. Choose services with `sh deploy/deploy.sh worker`; direct Compose build commands also select their services independently of TOML. Runtime settings still come from the same mounted TOML.
+## Migration from the flat catalog
+
+Move `clock.apps` into the relevant `clock.deploy` lists. Move `[clock.schedule]` into `[clock.services.display-policy]` and rename `enabled` to `schedule_enabled`. Old fields are rejected rather than silently ignored. Existing AWTRIX install names remain `cigar`, `seagull`, `mackerel`, and `display-policy`.

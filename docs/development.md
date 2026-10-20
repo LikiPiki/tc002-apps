@@ -15,6 +15,8 @@ Run these commands from the repository root:
 | `make clock-list` | Show the Berry deployment target and selected apps |
 | `make clock-deploy [APP=<name>]` | Upload selected Berry scripts to the configured target |
 | `make clock-show APP=<name>` | Show an installed script and check its runtime status |
+| `make clock-start APP=<name>` | Start an installed on-demand app |
+| `make clock-stop APP=<name>` | End the current on-demand session |
 | `make clock-check [APP=<name>]` | Execute Berry apps in disposable local AWTRIX and check frames/errors |
 | `make dev` | Build and start virtual AWTRIX |
 | `make dev-build` | Build all development images without starting them |
@@ -58,11 +60,13 @@ make clock-check
 make clock-check APP=mackerel CHECK_DURATION=3s
 ```
 
-This Docker-only command starts a separate, temporary AWTRIX with a 52 x 16 display, no published ports, and no persistent app data. It uses `clock.apps` from TOML (or `APP`) but always targets that sandbox, ignoring the configured physical-clock URL and `AWTRIX_URL` environment variable. Config paths must be inside the repository because it is mounted read-only into the check container.
+This Docker-only command starts a separate, temporary AWTRIX with a 52 x 16 display, no published ports, and no persistent app data. It uses `clock.deploy` selections (or `APP`), with optional `KIND=screens|services|on-demand`, but always targets that sandbox, ignoring the physical-clock URL and `AWTRIX_URL` environment variable. Config paths must be inside the mounted repository.
 
 Each selected script is installed, shown, and sampled every 100ms for two seconds by default. The command checks script errors, the active app, and valid pixel frames. Static or black output is valid; this is not an image comparison or an animation-quality test. Apps must stay visible for the observation window. Delayed callbacks and hardware-dependent behavior still need separate checks.
 
 Headless scripts are observed for errors without switching the active app or requiring pixel frames. Their observation window must be at least 1500ms so `loop()` can execute. After observation, each headless script is disabled inside the sandbox, and the display is turned on before checking subsequent visual apps. This prevents power controllers from interfering with drawing checks.
+
+On-demand apps are installed dormant, started explicitly for the check, observed as visual apps, then stopped so their instance is unloaded. The repository category must match the Berry header; duplicate names, unknown configured apps/settings, and incorrect setting types fail before upload. The on-demand directory initially has no bundled tools; an empty selection is valid.
 
 Temporary containers, networks, and data are removed on success or failure. The regular virtual-clock instance and physical TC002 are not modified by the command. Image downloads/build caches remain. This check is available locally and is not added to CI.
 

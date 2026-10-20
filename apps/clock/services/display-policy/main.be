@@ -2,7 +2,7 @@
 # @desc Background display power schedule using the clock's local time.
 # @version 1.0.0
 # @headless true
-# @config enabled bool "Enable schedule" default=false
+# @config schedule_enabled bool "Enable schedule" default=false
 # @config on text "Display on (HH:MM)" default="10:00" maxlen=5
 # @config off text "Display off (HH:MM)" default="20:00" maxlen=5
 
@@ -10,7 +10,7 @@ class DisplayPolicy
   var enabled, on_minute, off_minute
 
   def init()
-    self.enabled = store.get("enabled", false)
+    self.enabled = store.get("schedule_enabled", false)
     self.on_minute = self.parse_time(store.get("on", "10:00"))
     self.off_minute = self.parse_time(store.get("off", "20:00"))
     if self.on_minute == self.off_minute

@@ -1,34 +1,43 @@
-# Clock apps (Berry)
+# Clock apps by lifecycle
 
-Everything in this directory targets the TC002 itself and runs inside the AWTRIX NG Berry interpreter.
+All code here runs on the TC002 inside AWTRIX NG. Choose the lifecycle before adding an app:
 
-Each app lives at `apps/clock/<name>/main.be`, alongside a `README.md` describing its purpose, supported AWTRIX version, settings, and input data. Keep app-specific assets with the app; shared icons belong in `assets/icons/` within this directory.
+| Directory | Firmware marker | Behavior |
+| --- | --- | --- |
+| [screens/](screens/) | No special marker | Visual apps in normal rotation |
+| [services/](services/) | `# @headless true` | Background controllers with no page |
+| [on-demand/](on-demand/) | `# @ondemand` | Tools or games started from the menu or API |
 
-## Available apps
+Each app has `<kind>/<name>/main.be` and a README. The directory name is the install name and must be unique across all three categories. Deployment rejects mismatched lifecycle headers and duplicate names before contacting the clock.
 
-| App | Description |
-| --- | --- |
-| [cigar](cigar/) | An animated cigar with curling smoke, pulsing embers, and sparks |
-| [seagull](seagull/) | A screenshot-derived upside-down seagull with kicking feet |
-| [mackerel](mackerel/) | A photo-derived golden mackerel with a waving tail and swimming motion |
-| [display-policy](display-policy/) | Headless controller for a daily display power schedule |
+## Selection and settings
 
-## Deploy from this repository
+One shared TOML and optional personal overrides control all types:
 
-From the repository root:
+```toml
+[clock.deploy]
+screens = ["*"]
+services = ["display-policy"]
+on_demand = []
 
-```sh
-make clock-list                 # Preview the target and selected scripts; no device access
-make clock-deploy               # Upload all selected Berry apps
-make clock-deploy APP=mackerel  # Upload only one app
-make clock-show APP=mackerel    # Show an installed app and check for runtime errors
-make clock-check APP=mackerel   # Execute in disposable local AWTRIX and inspect runtime status
+[clock.services.display-policy]
+schedule_enabled = true
+on = "10:00"
+off = "20:00"
 ```
 
-The shared `configs/config.toml` defaults to the local virtual clock and all Berry apps. Copy `configs/config.local.toml.example` to `configs/config.local.toml` and set `[clock] url` for your physical clock. The personal file is excluded from Git and Docker build context. See [configuration](../../docs/configuration.md) and [Berry deployment](../../docs/commands.md#berry-deployment).
+Selection and behavior are separate: putting a service in the deployment list installs it; its own settings decide what it does. Per-app settings use `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>` and match the app's `@config` keys. The CLI applies them through the generic AWTRIX config API.
 
-You can also install apps through the Scripts tab or the HTTP examples in each app's README.
+```sh
+make clock-list
+make clock-deploy KIND=screens
+make clock-deploy APP=display-policy
+make clock-show APP=mackerel
+make clock-start APP=<tool>
+make clock-stop APP=<tool>
+make clock-check
+```
 
-For local testing, run `make dev`, then `make clock-deploy LOCAL_CONFIG=` to ignore personal overrides. Keep `AWTRIX_URL` unset, open http://localhost:8080, and inspect the live preview. Hardware-dependent features still need testing on a physical TC002.
+For manual local preview, run `make dev`, then deploy with `LOCAL_CONFIG=` and leave `AWTRIX_URL` unset. `clock-check` always uses its own disposable local target.
 
-This directory does not contain Go services or a Docker runtime. See the [development guide](../../docs/development.md) and [contribution guide](../../CONTRIBUTING.md) for details.
+See [configuration](../../docs/configuration.md), [architecture](../../docs/architecture.md), and [commands](../../docs/commands.md).

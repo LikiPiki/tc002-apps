@@ -36,13 +36,16 @@ For the virtual clock, use `make dev` followed by `make dev-notify TEXT="Hello!"
 
 ```sh
 make clock-list                 # Target and selected files; no device access
-make clock-deploy               # Upload clock.apps from TOML
+make clock-deploy               # Upload the category lists under clock.deploy
+make clock-deploy KIND=services # Filter by screens, services, or on-demand
 make clock-deploy APP=mackerel  # Upload one app instead of the config selection
 make clock-show APP=mackerel    # Show an installed app and check its error status
+make clock-start APP=<tool>     # Start an on-demand session
+make clock-stop APP=<tool>      # End that session, keeping it installed
 make clock-check APP=mackerel   # Test in disposable local AWTRIX, never the configured clock
 ```
 
-The list/deploy/show Make commands require Go; `clock-check` requires Docker with Compose v2 and builds its Go runner in a container. For the regular local virtual clock without personal settings:
+The list/deploy/show/start/stop Make commands require Go; `clock-check` requires Docker with Compose v2 and builds its Go runner in a container. APP names are unique across categories, KIND filters list/deploy/check, and empty clock selections are valid no-ops. For the regular local virtual clock without personal settings:
 
 ```sh
 make dev
@@ -65,7 +68,9 @@ Deployment reads all selected sources before writing to the device. It requires 
 
 After each upload the command checks the installed script's enabled/error status. It stops on the first failure; earlier successful apps in the batch are not rolled back. Same-name scripts preserve AWTRIX's saved app data. Unselected apps are not deleted. Errors in later `draw()` or callbacks still require runtime checks.
 
-For `display-policy`, deployment also applies `clock.schedule` through the script-settings API and checks the restart result. This is a separate operation after the atomic source update. `clock-show` rejects headless scripts because they have no display page.
+For any app with configured settings, deployment patches its matching `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>` table through the script-settings API and checks the result. This is separate from the atomic source update. The catalog checks lifecycle metadata and basic setting types before device writes. AWTRIX and the app validate domain constraints.
+
+`clock-show` accepts rotating screens. `clock-start` accepts on-demand apps, creates a fresh instance, and takes over the display until exited; it does not override a power policy. `clock-stop` only stops the named currently running on-demand session, returning to normal rotation. Services have no display page and cannot be shown. Deployment does not automatically start on-demand apps.
 
 Deployment does not explicitly switch the current screen. `clock-show` selects an app, allows `draw()` to execute, and checks its error status again. Later callbacks can still fail; this is not a full visual or hardware test. Normal rotation continues afterwards. AWTRIX compiles the source; no local Berry compiler is needed.
 

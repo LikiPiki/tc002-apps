@@ -17,7 +17,7 @@ From the repository root, run `make dev`, then upload:
 ```sh
 curl --fail-with-body -X PUT http://localhost:8080/api/v1/apps/script/seagull \
   -H 'Content-Type: text/plain' \
-  --data-binary @apps/clock/seagull/main.be
+  --data-binary @apps/clock/screens/seagull/main.be
 
 curl --fail-with-body -X PUT http://localhost:8080/api/v1/apps/active \
   -H 'Content-Type: application/json' \
