@@ -10,6 +10,7 @@ Each app lives at `apps/clock/<name>/main.be`, alongside a `README.md` describin
 | --- | --- |
 | [hello-world](hello-world/) | A minimal two-line greeting for the TC002's 52 x 16 display |
 | [cigar](cigar/) | An animated cigar with curling smoke, pulsing embers, and sparks |
+| [seagull](seagull/) | A screenshot-derived upside-down seagull with kicking feet |
 
 Install apps through the Scripts tab in the clock's web UI or the HTTP API shown in the app's README. Automated upload through `clockctl` is planned but not implemented.
 
