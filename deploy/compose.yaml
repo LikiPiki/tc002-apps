@@ -1,0 +1,29 @@
+services:
+  worker:
+    build:
+      context: ..
+      args:
+        APP: worker
+    command: ["--interval", "${WORKER_INTERVAL:-1m}"]
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  clockctl:
+    profiles: [tools]
+    build:
+      context: ..
+      args:
+        APP: clockctl
+    environment:
+      AWTRIX_URL: ${AWTRIX_URL:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
