@@ -117,25 +117,98 @@ func (c *Client) InstallScript(ctx context.Context, name string, source []byte) 
 	return nil
 }
 
-func (c *Client) CheckScript(ctx context.Context, name string) error {
-	var apps []struct {
-		Name    string          `json:"name"`
-		Origin  string          `json:"origin"`
-		Enabled bool            `json:"enabled"`
-		Error   json.RawMessage `json:"error"`
+type ScriptInfo struct {
+	Name     string          `json:"name"`
+	Origin   string          `json:"origin"`
+	Enabled  bool            `json:"enabled"`
+	Headless bool            `json:"headless"`
+	Error    json.RawMessage `json:"error"`
+}
+
+func (app ScriptInfo) check() error {
+	if !app.Enabled || string(app.Error) != "null" {
+		return fmt.Errorf("script %s: enabled=%v error=%s", app.Name, app.Enabled, app.Error)
 	}
+	return nil
+}
+
+func (c *Client) Script(ctx context.Context, name string) (ScriptInfo, error) {
+	var apps []ScriptInfo
 	if err := c.request(ctx, http.MethodGet, "/api/v1/apps", "", nil, &apps); err != nil {
-		return err
+		return ScriptInfo{}, err
 	}
 	for _, app := range apps {
 		if app.Name == name && app.Origin == "script" {
-			if !app.Enabled || string(app.Error) != "null" {
-				return fmt.Errorf("script %s: enabled=%v error=%s", name, app.Enabled, app.Error)
-			}
-			return nil
+			return app, nil
 		}
 	}
-	return fmt.Errorf("script %s is missing from AWTRIX", name)
+	return ScriptInfo{}, fmt.Errorf("script %s is missing from AWTRIX", name)
+}
+
+func (c *Client) CheckScript(ctx context.Context, name string) error {
+	info, err := c.Script(ctx, name)
+	if err != nil {
+		return err
+	}
+	return info.check()
+}
+
+func (c *Client) ConfigureScript(ctx context.Context, name string, settings map[string]any) error {
+	if err := ValidateAppName(name); err != nil {
+		return err
+	}
+	if len(settings) == 0 {
+		return fmt.Errorf("script settings must not be empty")
+	}
+	body, err := json.Marshal(settings)
+	if err != nil {
+		return err
+	}
+	var result struct {
+		OK    bool            `json:"ok"`
+		Error json.RawMessage `json:"error"`
+	}
+	if err := c.request(ctx, http.MethodPatch, "/api/v1/apps/"+name+"/config", "application/json", body, &result); err != nil {
+		return err
+	}
+	if !result.OK || string(result.Error) != "null" {
+		return fmt.Errorf("script %s settings failed: ok=%v error=%s", name, result.OK, result.Error)
+	}
+	return nil
+}
+
+func (c *Client) confirmedCommand(ctx context.Context, method, path string, payload []byte) error {
+	var result struct {
+		OK bool `json:"ok"`
+	}
+	if err := c.request(ctx, method, path, "application/json", payload, &result); err != nil {
+		return err
+	}
+	if !result.OK {
+		return fmt.Errorf("%s %s: command was not confirmed", method, path)
+	}
+	return nil
+}
+
+func (c *Client) SetDisplayPower(ctx context.Context, on bool) error {
+	body, err := json.Marshal(struct {
+		Power bool `json:"power"`
+	}{on})
+	if err != nil {
+		return err
+	}
+	return c.confirmedCommand(ctx, http.MethodPatch, "/api/v1/display", body)
+}
+
+func (c *Client) SetScriptEnabled(ctx context.Context, name string, enabled bool) error {
+	if err := ValidateAppName(name); err != nil {
+		return err
+	}
+	body, err := json.Marshal(enabled)
+	if err != nil {
+		return err
+	}
+	return c.confirmedCommand(ctx, http.MethodPut, "/api/v1/apps/"+name+"/enabled", body)
 }
 
 func (c *Client) CheckScripting(ctx context.Context) error {
@@ -155,8 +228,15 @@ func (c *Client) ShowScript(ctx context.Context, name string) error {
 	if err := ValidateAppName(name); err != nil {
 		return err
 	}
-	if err := c.CheckScript(ctx, name); err != nil {
+	info, err := c.Script(ctx, name)
+	if err != nil {
 		return err
+	}
+	if err := info.check(); err != nil {
+		return err
+	}
+	if info.Headless {
+		return fmt.Errorf("script %s is headless and has no display page", name)
 	}
 	body, err := json.Marshal(struct {
 		Name string `json:"name"`

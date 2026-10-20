@@ -16,13 +16,28 @@ import (
 
 type Config struct {
 	Clock struct {
-		URL  string
-		Apps []string
+		URL      string
+		Apps     []string
+		Schedule DisplaySchedule
 	}
 	Server struct {
 		Apps   []string
 		Worker struct{ Interval string }
 	}
+}
+
+type DisplaySchedule struct {
+	Enabled bool
+	On      string
+	Off     string
+}
+
+func validateScheduleTime(value string) error {
+	t, err := time.Parse("15:04", value)
+	if err != nil || t.Format("15:04") != value {
+		return fmt.Errorf("must use HH:MM between 00:00 and 23:59")
+	}
+	return nil
 }
 
 // Paths registers the same config flags for every command, including containers.
@@ -42,6 +57,8 @@ func Paths(flags *flag.FlagSet) (base, personal *string) {
 func Load(base, personal string) (Config, error) {
 	var config Config
 	config.Clock.URL = "http://localhost:8080"
+	config.Clock.Schedule.On = "10:00"
+	config.Clock.Schedule.Off = "20:00"
 	config.Server.Worker.Interval = "1m"
 	for index, path := range []string{base, personal} {
 		if index == 1 && path == "" {
@@ -56,8 +73,13 @@ func Load(base, personal string) (Config, error) {
 		}
 		var fields struct {
 			Clock struct {
-				URL  *string   `toml:"url"`
-				Apps *[]string `toml:"apps"`
+				URL      *string   `toml:"url"`
+				Apps     *[]string `toml:"apps"`
+				Schedule struct {
+					Enabled *bool   `toml:"enabled"`
+					On      *string `toml:"on"`
+					Off     *string `toml:"off"`
+				} `toml:"schedule"`
 			} `toml:"clock"`
 			Server struct {
 				Apps   *[]string `toml:"apps"`
@@ -73,6 +95,15 @@ func Load(base, personal string) (Config, error) {
 		}
 		if fields.Clock.URL != nil {
 			config.Clock.URL = *fields.Clock.URL
+		}
+		if fields.Clock.Schedule.Enabled != nil {
+			config.Clock.Schedule.Enabled = *fields.Clock.Schedule.Enabled
+		}
+		if fields.Clock.Schedule.On != nil {
+			config.Clock.Schedule.On = *fields.Clock.Schedule.On
+		}
+		if fields.Clock.Schedule.Off != nil {
+			config.Clock.Schedule.Off = *fields.Clock.Schedule.Off
 		}
 		if fields.Clock.Apps != nil {
 			config.Clock.Apps, err = selection(*fields.Clock.Apps)
@@ -97,6 +128,15 @@ func Load(base, personal string) (Config, error) {
 	interval, err := time.ParseDuration(config.Server.Worker.Interval)
 	if err != nil || interval <= 0 {
 		return config, fmt.Errorf("server.worker.interval must be a positive Go duration")
+	}
+	if err := validateScheduleTime(config.Clock.Schedule.On); err != nil {
+		return config, fmt.Errorf("clock.schedule.on: %w", err)
+	}
+	if err := validateScheduleTime(config.Clock.Schedule.Off); err != nil {
+		return config, fmt.Errorf("clock.schedule.off: %w", err)
+	}
+	if config.Clock.Schedule.On == config.Clock.Schedule.Off {
+		return config, fmt.Errorf("clock.schedule.on and off must be different")
 	}
 	return config, nil
 }

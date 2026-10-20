@@ -3,6 +3,11 @@
 url = "http://192.168.1.50"
 # apps = ["cigar", "mackerel"]
 
+# [clock.schedule]
+# enabled = true
+# on = "10:00"
+# off = "20:00"
+
 # [server]
 # apps = ["worker"]
 

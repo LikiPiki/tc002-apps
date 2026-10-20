@@ -134,10 +134,41 @@ func runScripts(command string, args []string) error {
 		if err := client.InstallScript(context.Background(), script.name, script.source); err != nil {
 			return fmt.Errorf("%s: %w", script.name, err)
 		}
+		if script.name == "display-policy" {
+			settings := map[string]any{
+				"enabled": config.Clock.Schedule.Enabled,
+				"on":      config.Clock.Schedule.On,
+				"off":     config.Clock.Schedule.Off,
+			}
+			if err := client.ConfigureScript(context.Background(), script.name, settings); err != nil {
+				return fmt.Errorf("configure %s: %w", script.name, err)
+			}
+		}
 		if err := client.CheckScript(context.Background(), script.name); err != nil {
 			return err
 		}
 		if command == "check" {
+			info, err := client.Script(context.Background(), script.name)
+			if err != nil {
+				return err
+			}
+			if info.Headless {
+				ctx, cancel := context.WithTimeout(context.Background(), *duration+10*time.Second)
+				checks, err := client.ObserveHeadless(ctx, script.name, *duration)
+				cancel()
+				if err != nil {
+					return fmt.Errorf("check %s: %w", script.name, err)
+				}
+				// Prevent controllers from changing display power during later visual checks.
+				if err := client.SetScriptEnabled(context.Background(), script.name, false); err != nil {
+					return err
+				}
+				fmt.Printf("Checked %s: headless, %d status checks, no runtime errors\n", script.name, checks)
+				continue
+			}
+			if err := client.SetDisplayPower(context.Background(), true); err != nil {
+				return err
+			}
 			if err := client.ShowScript(context.Background(), script.name); err != nil {
 				return err
 			}

@@ -65,6 +65,8 @@ Deployment reads all selected sources before writing to the device. It requires 
 
 After each upload the command checks the installed script's enabled/error status. It stops on the first failure; earlier successful apps in the batch are not rolled back. Same-name scripts preserve AWTRIX's saved app data. Unselected apps are not deleted. Errors in later `draw()` or callbacks still require runtime checks.
 
+For `display-policy`, deployment also applies `clock.schedule` through the script-settings API and checks the restart result. This is a separate operation after the atomic source update. `clock-show` rejects headless scripts because they have no display page.
+
 Deployment does not explicitly switch the current screen. `clock-show` selects an app, allows `draw()` to execute, and checks its error status again. Later callbacks can still fail; this is not a full visual or hardware test. Normal rotation continues afterwards. AWTRIX compiles the source; no local Berry compiler is needed.
 
 To deploy scripts from Docker, mount the repository read-only so the config and source are available:

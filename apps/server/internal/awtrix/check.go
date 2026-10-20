@@ -7,6 +7,31 @@ import (
 	"time"
 )
 
+// ObserveHeadless checks background hooks without requiring an active display page.
+func (c *Client) ObserveHeadless(ctx context.Context, name string, duration time.Duration) (int, error) {
+	if duration < 1500*time.Millisecond {
+		return 0, fmt.Errorf("headless observation requires at least 1500ms to exercise loop()")
+	}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	deadline := time.NewTimer(duration)
+	defer deadline.Stop()
+	checks := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return checks, ctx.Err()
+		case <-deadline.C:
+			return checks, c.CheckScript(ctx, name)
+		case <-ticker.C:
+			if err := c.CheckScript(ctx, name); err != nil {
+				return checks, err
+			}
+			checks++
+		}
+	}
+}
+
 // ObserveScript samples an already displayed app. Static or black frames are valid.
 func (c *Client) ObserveScript(ctx context.Context, name string, duration time.Duration) (int, error) {
 	if duration < 250*time.Millisecond {

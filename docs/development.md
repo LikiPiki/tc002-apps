@@ -62,6 +62,8 @@ This Docker-only command starts a separate, temporary AWTRIX with a 52 x 16 disp
 
 Each selected script is installed, shown, and sampled every 100ms for two seconds by default. The command checks script errors, the active app, and valid pixel frames. Static or black output is valid; this is not an image comparison or an animation-quality test. Apps must stay visible for the observation window. Delayed callbacks and hardware-dependent behavior still need separate checks.
 
+Headless scripts are observed for errors without switching the active app or requiring pixel frames. Their observation window must be at least 1500ms so `loop()` can execute. After observation, each headless script is disabled inside the sandbox, and the display is turned on before checking subsequent visual apps. This prevents power controllers from interfering with drawing checks.
+
 Temporary containers, networks, and data are removed on success or failure. The regular virtual-clock instance and physical TC002 are not modified by the command. Image downloads/build caches remain. This check is available locally and is not added to CI.
 
 ### Go integration smoke check

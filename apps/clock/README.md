@@ -11,6 +11,7 @@ Each app lives at `apps/clock/<name>/main.be`, alongside a `README.md` describin
 | [cigar](cigar/) | An animated cigar with curling smoke, pulsing embers, and sparks |
 | [seagull](seagull/) | A screenshot-derived upside-down seagull with kicking feet |
 | [mackerel](mackerel/) | A photo-derived golden mackerel with a waving tail and swimming motion |
+| [display-policy](display-policy/) | Headless controller for a daily display power schedule |
 
 ## Deploy from this repository
 

@@ -49,12 +49,25 @@ func TestRejectInvalidConfig(t *testing.T) {
 		"[clock]\napps = \"cigar\"", "[server]\napps = [\"*\", \"worker\"]",
 		"[clock]\nurl = \"not-a-url\"", "[server.worker]\ninterval = \"0s\"",
 		"[server.worker]\ninterval = \"nope\"", "[clock]\nurl = [",
+		"[clock.schedule]\non = \"9:00\"", "[clock.schedule]\noff = \"24:00\"",
+		"[clock.schedule]\non = \"20:00\"\noff = \"20:00\"",
 	} {
 		path := filepath.Join(t.TempDir(), "config.toml")
 		fixture(t, path, content)
 		if _, err := Load(path, ""); err == nil {
 			t.Errorf("accepted invalid config: %s", content)
 		}
+	}
+}
+
+func TestScheduleOverridesAndOvernightWindow(t *testing.T) {
+	dir := t.TempDir()
+	base, personal := filepath.Join(dir, "base.toml"), filepath.Join(dir, "personal.toml")
+	fixture(t, base, "[clock.schedule]\nenabled = false\non = \"20:00\"\noff = \"02:00\"\n")
+	fixture(t, personal, "[clock.schedule]\nenabled = true\n")
+	c, err := Load(base, personal)
+	if err != nil || !c.Clock.Schedule.Enabled || c.Clock.Schedule.On != "20:00" || c.Clock.Schedule.Off != "02:00" {
+		t.Fatalf("unexpected schedule: %+v, %v", c.Clock.Schedule, err)
 	}
 }
 

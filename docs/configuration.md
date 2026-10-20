@@ -17,6 +17,11 @@ The shared file is required. The personal file may be absent. Unknown fields, ma
 url = "http://localhost:8080"
 apps = ["*"]
 
+[clock.schedule]
+enabled = false
+on = "10:00"
+off = "20:00"
+
 [server]
 apps = ["*"]
 
@@ -28,6 +33,7 @@ interval = "1m"
 | --- | --- |
 | `clock.url` | Notifications, Berry deployment, and display selection |
 | `clock.apps` | Berry scripts selected by `clock-list` and `clock-deploy` |
+| `clock.schedule` | Persisted settings applied when deploying `display-policy`; defaults to disabled, 10:00-20:00 |
 | `server.apps` | Go commands selected by `list-apps`, `build`, `docker-build`, and `docker-save` |
 | `server.worker.interval` | Period between worker runs; a positive Go duration such as `30s` or `5m` |
 
@@ -56,6 +62,8 @@ interval = "30s"
 Only specified fields override shared defaults, including within nested tables. Arrays replace rather than append. To reset a selection to all apps, use `apps = ["*"]` in the relevant table.
 
 The personal file is excluded from Git and Docker build context. Your settings are never baked into the image.
+
+To activate the autonomous display scheduler, set `[clock.schedule] enabled = true` in your personal config and deploy `display-policy`. It uses the timezone configured on AWTRIX. Times must use `HH:MM`; on is inclusive, off is exclusive, overnight intervals are allowed, and equal endpoints are rejected. See the [app README](../apps/clock/display-policy/README.md) for manual overrides and unknown-time behavior.
 
 ## Paths and explicit overrides
 
