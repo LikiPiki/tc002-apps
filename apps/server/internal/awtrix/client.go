@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,15 @@ import (
 type Client struct {
 	baseURL string
 	http    *http.Client
+}
+
+type HTTPError struct {
+	StatusCode int
+	Status     string
+}
+
+func (e *HTTPError) Error() string {
+	return "AWTRIX returned " + e.Status
 }
 
 var appName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
@@ -45,7 +55,14 @@ func (c *Client) request(ctx context.Context, method, path, contentType string, 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("AWTRIX returned %s", resp.Status)
+		return &HTTPError{StatusCode: resp.StatusCode, Status: resp.Status}
+	}
+	if raw, ok := result.(*[]byte); ok {
+		*raw, err = io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
+		if err == nil && len(*raw) > 1<<20 {
+			return fmt.Errorf("AWTRIX source exceeds 1 MiB")
+		}
+		return err
 	}
 	if result != nil {
 		return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(result)
@@ -58,14 +75,42 @@ func (c *Client) InstallScript(ctx context.Context, name string, source []byte) 
 	if err := ValidateAppName(name); err != nil {
 		return err
 	}
+	var capabilities struct {
+		ScriptUpdates bool `json:"scriptUpdates"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/api/v1/capabilities", "", nil, &capabilities); err != nil {
+		return err
+	}
+	if !capabilities.ScriptUpdates {
+		return fmt.Errorf("target does not support atomic script updates; update AWTRIX NG first")
+	}
+	var oldSource []byte
+	var expected *string
+	err := c.request(ctx, http.MethodGet, "/api/v1/apps/script/"+name, "", nil, &oldSource)
+	if err == nil {
+		text := string(oldSource)
+		expected = &text
+	} else {
+		var status *HTTPError
+		if !errors.As(err, &status) || status.StatusCode != http.StatusNotFound {
+			return err
+		}
+	}
+	payload, err := json.Marshal(struct {
+		Expected *string `json:"expected_source"`
+		Source   string  `json:"source"`
+	}{expected, string(source)})
+	if err != nil {
+		return err
+	}
 	var result struct {
 		OK    bool            `json:"ok"`
 		Error json.RawMessage `json:"error"`
 	}
-	if err := c.request(ctx, http.MethodPut, "/api/v1/apps/script/"+name, "text/plain", source, &result); err != nil {
+	if err := c.request(ctx, http.MethodPut, "/api/v1/apps/script-update/"+name, "application/json", payload, &result); err != nil {
 		return err
 	}
-	if !result.OK || string(result.Error) != "null" {
+	if !result.OK || (len(result.Error) != 0 && string(result.Error) != "null") {
 		return fmt.Errorf("script installation failed: ok=%v error=%s", result.OK, result.Error)
 	}
 	return nil

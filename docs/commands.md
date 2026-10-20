@@ -58,7 +58,9 @@ go run ./apps/server/cmd/clockctl list --local-config ''
 go run ./apps/server/cmd/clockctl server-list # Go build selection, names only
 ```
 
-Deployment reads all selected sources before writing to the device. It checks that Berry scripting is running, uploads each source, requires `error: null`, and checks the installed script's enabled/error status. It stops on the first failure; earlier successful uploads are not rolled back. Same-name scripts are replaced, preserving AWTRIX's saved app data. Unselected apps are not deleted.
+Deployment reads all selected sources before writing to the device. It requires running Berry scripting and the `scriptUpdates` capability. It reads the exact previous source, then uses `/api/v1/apps/script-update/{name}` with `expected_source` (or `null` for a new app). AWTRIX preserves the previous script if the new source fails compilation or setup, and rejects concurrent changes with HTTP 409. There is no unsafe replacement fallback. Update AWTRIX NG if atomic updates are unsupported.
+
+After each upload the command checks the installed script's enabled/error status. It stops on the first failure; earlier successful apps in the batch are not rolled back. Same-name scripts preserve AWTRIX's saved app data. Unselected apps are not deleted. Errors in later `draw()` or callbacks still require runtime checks.
 
 Deployment does not explicitly switch the current screen. `clock-show` selects an app, allows `draw()` to execute, and checks its error status again. Later callbacks can still fail; this is not a full visual or hardware test. Normal rotation continues afterwards. AWTRIX compiles the source; no local Berry compiler is needed.
 

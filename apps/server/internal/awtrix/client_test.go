@@ -2,39 +2,106 @@ package awtrix
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestInstallScriptChecksBerryErrorEvenWithHTTP200(t *testing.T) {
+func TestInstallScriptUsesAtomicCompareAndSwap(t *testing.T) {
 	for _, test := range []struct {
 		name string
-		body string
-		fail bool
+		old  *string
 	}{
-		{"success", `{"ok":true,"error":null}`, false},
-		{"syntax error", `{"ok":true,"error":{"message":"syntax_error"}}`, true},
-		{"missing error status", `{"ok":true}`, true},
-		{"not confirmed", `{"ok":false,"error":null}`, true},
+		{"new script", nil},
+		{"existing script", pointer("# Preserve exact whitespace\nreturn Old()\n")},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			updated := false
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				body, _ := io.ReadAll(r.Body)
-				if r.Method != http.MethodPut || r.URL.Path != "/api/v1/apps/script/demo" || r.Header.Get("Content-Type") != "text/plain" || string(body) != "return Demo()" {
-					t.Errorf("unexpected upload: %s %s %q", r.Method, r.URL.Path, body)
+				switch r.Method + " " + r.URL.Path {
+				case "GET /api/v1/capabilities":
+					fmt.Fprint(w, `{"scriptUpdates":true}`)
+				case "GET /api/v1/apps/script/demo":
+					if test.old == nil {
+						w.WriteHeader(http.StatusNotFound)
+					} else {
+						fmt.Fprint(w, *test.old)
+					}
+				case "PUT /api/v1/apps/script-update/demo":
+					var body struct {
+						Expected *string `json:"expected_source"`
+						Source   string  `json:"source"`
+					}
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Error(err)
+					}
+					if r.Header.Get("Content-Type") != "application/json" || body.Source != "return Demo()" || (body.Expected == nil) != (test.old == nil) {
+						t.Errorf("unexpected update: %+v", body)
+					}
+					if body.Expected != nil && *body.Expected != *test.old {
+						t.Error("old source was changed before comparison")
+					}
+					updated = true
+					fmt.Fprint(w, `{"ok":true}`)
+				default:
+					t.Errorf("unsafe or unexpected request: %s %s", r.Method, r.URL.Path)
+					w.WriteHeader(500)
 				}
-				fmt.Fprint(w, test.body)
 			}))
 			defer server.Close()
 			client, _ := NewClient(server.URL)
 			err := client.InstallScript(context.Background(), "demo", []byte("return Demo()"))
-			if (err != nil) != test.fail {
-				t.Fatalf("error = %v, want failure = %v", err, test.fail)
+			if err != nil || !updated {
+				t.Fatalf("update = %v, error = %v", updated, err)
 			}
 		})
+	}
+}
+
+func pointer(s string) *string { return &s }
+
+func TestAtomicUpdateNeverFallsBackOnFailure(t *testing.T) {
+	for _, status := range []int{409, 422} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			writes := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/capabilities":
+					fmt.Fprint(w, `{"scriptUpdates":true}`)
+				case "/api/v1/apps/script/demo":
+					if r.Method != http.MethodGet {
+						t.Error("unsafe replacement attempted")
+					}
+					fmt.Fprint(w, "return Working()")
+				case "/api/v1/apps/script-update/demo":
+					writes++
+					w.WriteHeader(status)
+				default:
+					t.Error("unexpected request")
+				}
+			}))
+			defer server.Close()
+			client, _ := NewClient(server.URL)
+			if err := client.InstallScript(context.Background(), "demo", []byte("bad source")); err == nil || writes != 1 {
+				t.Fatalf("writes=%d error=%v", writes, err)
+			}
+		})
+	}
+}
+
+func TestAtomicUpdatesRequired(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/capabilities" {
+			t.Error("must stop before reading or writing scripts")
+		}
+		fmt.Fprint(w, `{"scriptUpdates":false}`)
+	}))
+	defer server.Close()
+	client, _ := NewClient(server.URL)
+	if err := client.InstallScript(context.Background(), "demo", []byte("return Demo()")); err == nil {
+		t.Fatal("accepted unsupported firmware")
 	}
 }
 
