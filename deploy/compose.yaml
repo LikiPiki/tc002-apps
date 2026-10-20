@@ -5,7 +5,13 @@ services:
       context: ..
       args:
         APP: worker
-    command: ["--interval", "${WORKER_INTERVAL:-1m}"]
+    volumes: &project-config
+      - type: bind
+        source: ../configs
+        target: /app/configs
+        read_only: true
+        bind:
+          create_host_path: false
     restart: unless-stopped
     init: true
     read_only: true
@@ -24,8 +30,7 @@ services:
       context: ..
       args:
         APP: clockctl
-    environment:
-      AWTRIX_URL: ${AWTRIX_URL:-}
+    volumes: *project-config
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

@@ -2,10 +2,10 @@
 
 ## Requirements
 
-- A Linux VPS with Docker Engine and the Docker Compose v2 plugin. Source-based deployment also requires Git.
+- A Linux VPS with Docker Engine and Docker Compose v2; source-based updates also require Git.
 - A user with permission to run Docker.
-- Make and `gzip` on the build machine if you use the Make-based build and image-export commands.
-- A network route from the container to the TC002 for publishing to the clock. Home IP addresses and `.local` names are usually unreachable from a VPS. Use a VPN route to your home network or, once MQTT support is implemented, a broker reachable by both sides.
+- Make and `gzip` on the build machine for Make-based builds and image exports.
+- A network route from the container to the TC002. A home IP address is normally unreachable from a VPS: use a VPN, or a broker reachable by both sides once MQTT support is implemented.
 
 ## Initial deployment
 
@@ -14,125 +14,105 @@ On the VPS:
 ```sh
 git clone https://github.com/LikiPiki/tc002-apps.git
 cd tc002-apps
-cp deploy/.env.example deploy/.env
-# Edit deploy/.env: set the clock address and worker interval.
-sh deploy/deploy.sh
+cp configs/config.local.toml.example configs/config.local.toml
+# Edit clock.url, server.apps, and server.worker.interval as needed.
+sh deploy/deploy.sh worker
 ```
 
-The script validates the Compose configuration, builds the image, and starts the worker in the background. With the Docker daemon running, `restart: unless-stopped` restarts it after a reboot.
+The script validates Compose, builds the selected service, and starts it in the background. `restart: unless-stopped` restarts the worker after a reboot when Docker is running. With no arguments, the script selects only `worker`.
 
-## Selecting apps
+Both native Go commands and containers read the [same TOML files](configuration.md). Compose mounts `configs/` read-only; no `.env` file is needed. The shared config must exist, and personal overrides are optional. Keep actual personal settings out of Git.
 
-Go commands can be built independently:
+## Build selection
+
+Set the Go commands to build in your personal config:
+
+```toml
+[server]
+apps = ["worker"]
+```
+
+`["*"]` or an omitted selection builds all Go commands. An empty list is an error.
 
 ```sh
 make list-apps
-make build
-make docker-build
+make build         # Native binaries; requires Go
+make docker-build # Selected runtime images
+make docker-save  # Selected images as dist/<app>.tar.gz
 ```
 
-Build selection is controlled by `configs/apps.list`: directory names from `apps/server/cmd/`, one per line. This selects Go programs running outside the clock; Berry apps in `apps/clock/` are installed separately through AWTRIX NG. Blank lines and `#` comments are allowed. For example:
-
-```text
-worker
-# clockctl
-```
-
-If the config is absent, **all** Go apps are built. If it exists, only the listed apps and their dependencies are built. An empty list or an unknown name is an error. Start with `cp configs/apps.list.example configs/apps.list`. This local config is excluded from Git. To use another path, run `make build CONFIG=configs/vps.list`; an absent file at that path also means all apps will be built.
-
-`make check` and the local development environment check the project independently of production build selection. Existing files in `bin/` and `dist/` are not removed automatically. Transfer only the archives for the apps you selected.
-
-To build a new Docker app, add an `apps/server/cmd/<name>` directory. To manage it through Compose, also add a service with the same name and image `tc002-apps/<name>:local`.
-
-On the VPS, specify which services to deploy:
+`server.apps` selects Make build/export artifacts. It does not choose running services. Explicit deployment selects services separately:
 
 ```sh
 sh deploy/deploy.sh worker
 # Once other services exist: sh deploy/deploy.sh weather monitor
 ```
 
-The script builds and updates only the specified services. It does not start dependencies or remove other containers. With no arguments, it starts only `worker`. `clockctl` is a one-off CLI tool: use `compose run` rather than running it as a persistent service.
+Only specified services are built and updated. Dependencies are not started and other containers are not removed. To build according to TOML on the VPS, use `make docker-build`, then `sh deploy/deploy.sh --no-build worker`. Direct Compose build commands select their services independently of TOML.
 
-The app-selection config controls the Make build commands only. `deploy.sh` selects services through its arguments and builds them unless `--no-build` is set. For a config-selected build on the VPS, run `make docker-build`, then `sh deploy/deploy.sh --no-build worker` for the service you selected. Direct Compose build commands also do not read `configs/apps.list`.
+`clockctl` is a one-off CLI tool: use `compose run`, not a persistent service. For a new Go app, add `apps/server/cmd/<name>/main.go`; managed deployment also needs a Compose service using `APP: <name>` and image `tc002-apps/<name>:local`.
 
-## Transferring prebuilt images
+## Transfer prebuilt images
 
-To deploy without building Go on the VPS or transferring source code:
+On the build machine, configure `server.apps`, then export only the images you need:
 
 ```sh
-# On the build machine:
-cp configs/apps.list.example configs/apps.list # The example selects worker.
 make docker-save
-scp dist/worker.tar.gz user@vps:/opt/tc002-apps/
-# Also transfer deploy/compose.yaml and deploy/deploy.sh to /opt/tc002-apps/deploy/.
 ```
 
-Create `/opt/tc002-apps/deploy` on the VPS before transferring files. Create `deploy/.env` using `deploy/.env.example` as a template. Then, from `/opt/tc002-apps`:
+Prepare `/opt/tc002-apps/deploy` and `/opt/tc002-apps/configs` on the VPS. Transfer:
+
+- The selected `dist/<app>.tar.gz` archives.
+- `deploy/compose.yaml` and `deploy/deploy.sh`.
+- `configs/config.toml` and your VPS-specific `configs/config.local.toml` (optional).
+
+Then, from `/opt/tc002-apps` on the VPS:
 
 ```sh
 docker load -i worker.tar.gz
 sh deploy/deploy.sh --no-build worker
 ```
 
-The archive contains only the selected runtime image, without source code or a compiler. Deployment requires the Compose file, script, and `.env`; a full Git checkout is not required. The image architecture must match the VPS. An ARM Mac builds ARM64 images by default. For an x86-64 VPS, build on an x86-64 machine or explicitly select the platform:
+A full Git checkout, source code, and Go installation are not required. The archive contains the selected binary and runtime dependencies; shared defaults are included, and the mounted config directory supplies deployment-specific settings.
+
+Match the image architecture to the VPS. An ARM Mac builds ARM64 images by default. For x86-64, build on an x86-64 machine or use Docker with target-architecture emulation:
 
 ```sh
 DOCKER_DEFAULT_PLATFORM=linux/amd64 make docker-save
 ```
 
-Cross-platform builds require Docker support for emulating the target architecture. To roll back a prebuilt-image deployment, load the previous image archive and redeploy with `--no-build`.
+Existing `bin/` and `dist/` files are not removed automatically. Transfer only the selected apps' current archives. For image-only rollback, load the previous archive and redeploy with `--no-build`.
 
-The worker currently only logs `worker tick`. Test connectivity to the clock separately:
+## Logs and one-off commands
+
+Run from the repository root, or `/opt/tc002-apps` for an image-only deployment:
 
 ```sh
-docker compose --env-file deploy/.env -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from VPS'
+docker compose -f deploy/compose.yaml logs -f --tail=100 worker
+docker compose -f deploy/compose.yaml ps
+docker compose -f deploy/compose.yaml run --rm --build worker --once
+docker compose -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from VPS'
+docker compose -f deploy/compose.yaml down
 ```
 
-In an image-only deployment, load the `clockctl` image separately if you need it, and omit `--build` from this command.
+For image-only deployment, load each needed image and omit `--build`. The worker logs its effective interval but remains a placeholder; it does not yet publish data. Notification commands use `clock.url` from the mounted TOML. Logs rotate with up to three files of 10 MB each.
 
-`deploy/.env` is excluded from Git and the Docker build context. Keep your actual settings on the VPS.
+## Updating and rollback
 
-## Logs and shutdown
-
-Run these commands from the repository root, or from `/opt/tc002-apps` for an image-only deployment:
+For a source-based deployment:
 
 ```sh
-docker compose --env-file deploy/.env -f deploy/compose.yaml logs -f --tail=100 worker
-docker compose --env-file deploy/.env -f deploy/compose.yaml ps
-docker compose --env-file deploy/.env -f deploy/compose.yaml down
-```
-
-Logs are rotated, with up to three files of 10 MB each.
-
-## Updating a source-based deployment
-
-```sh
-git rev-parse HEAD  # Save the current SHA for rollback.
+git rev-parse HEAD  # Save this SHA for rollback.
 git pull --ff-only
-sh deploy/deploy.sh
+sh deploy/deploy.sh worker
 ```
 
-This workflow builds source code directly on the VPS; no image registry or GitHub token for images is required. Push new changes to the repository before updating the VPS. For image-only deployments, export and load the new images, then rerun the deployment script with `--no-build`.
+Push new changes before updating the VPS. For rollback, check out the saved SHA in a clean working tree and rerun deployment; return to the working branch for later updates. For image-only deployment, export/load the new archives and rerun with `--no-build`.
 
-## Rolling back a source-based deployment
-
-With a clean working tree on the VPS, check out the saved SHA and redeploy:
+Config changes are read at process startup. After editing TOML, restart the running service:
 
 ```sh
-git checkout <previous-sha>
-sh deploy/deploy.sh
+docker compose -f deploy/compose.yaml restart worker
 ```
 
-For subsequent updates, return to your working branch and follow the normal update workflow.
-
-## Running the worker once
-
-```sh
-docker compose --env-file deploy/.env -f deploy/compose.yaml run --rm --build worker --once
-```
-
-For an image-only deployment, omit `--build`. Go does not need to be installed on the VPS: builds run in Docker. Each new command can use the same Dockerfile with a different `APP` build argument.
-
-## Configuration reference
-
-See the [Go command reference](commands.md) for `AWTRIX_URL`, `WORKER_INTERVAL`, and command-line options. Compose reads values from `deploy/.env`; native Go commands do not load that file automatically.
+See [Project configuration](configuration.md) for merge rules and [Go commands](commands.md) for flags.

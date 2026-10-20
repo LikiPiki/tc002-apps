@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
@@ -14,39 +13,6 @@ func writeFixture(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestPersonalClockConfigOverridesOnlySpecifiedFields(t *testing.T) {
-	dir := t.TempDir()
-	base, personal := filepath.Join(dir, "clock.toml"), filepath.Join(dir, "local.toml")
-	writeFixture(t, base, "url = \"http://localhost:8080\"\napps = [\"cigar\"]\n")
-	writeFixture(t, personal, "# Personal clock\nurl = \"http://192.168.1.50\"\n")
-	config, err := loadClockConfig(base, personal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if config.URL != "http://192.168.1.50" || !reflect.DeepEqual(config.Apps, []string{"cigar"}) {
-		t.Fatalf("unexpected merged config: %+v", config)
-	}
-	writeFixture(t, personal, `apps = ["*"]`)
-	config, err = loadClockConfig(base, personal)
-	if err != nil || config.Apps != nil || config.URL != "http://localhost:8080" {
-		t.Fatalf("wildcard should select all apps without changing URL: %+v, %v", config, err)
-	}
-	config, err = loadClockConfig(base, filepath.Join(dir, "missing.toml"))
-	if err != nil || config.URL != "http://localhost:8080" {
-		t.Fatalf("missing optional config: %+v, %v", config, err)
-	}
-}
-
-func TestClockConfigRejectsMistakes(t *testing.T) {
-	for _, content := range []string{`apps = []`, `app = ["cigar"]`, `apps = "cigar"`, "url = ["} {
-		path := filepath.Join(t.TempDir(), "clock.toml")
-		writeFixture(t, path, content)
-		if _, err := loadClockConfig(path, ""); err == nil {
-			t.Errorf("accepted bad config: %s", content)
-		}
 	}
 }
 

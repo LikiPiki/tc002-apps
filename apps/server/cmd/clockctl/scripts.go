@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -12,51 +11,8 @@ import (
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
-	"github.com/pelletier/go-toml/v2"
+	projectconfig "github.com/LikiPiki/tc002-apps/apps/server/internal/config"
 )
-
-type clockConfig struct {
-	URL  string
-	Apps []string
-}
-
-func loadClockConfig(base, personal string) (clockConfig, error) {
-	var config clockConfig
-	for index, path := range []string{base, personal} {
-		if path == "" && index == 1 {
-			continue
-		}
-		data, err := os.ReadFile(path)
-		if index == 1 && errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return config, err
-		}
-		var fields struct {
-			URL  *string   `toml:"url"`
-			Apps *[]string `toml:"apps"`
-		}
-		decoder := toml.NewDecoder(bytes.NewReader(data))
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&fields); err != nil {
-			return config, fmt.Errorf("%s: %w", path, err)
-		}
-		if fields.URL != nil {
-			config.URL = *fields.URL
-		}
-		if fields.Apps != nil {
-			config.Apps = *fields.Apps
-			if len(config.Apps) == 0 {
-				return config, fmt.Errorf("%s: apps must be [\"*\"] (all apps) or a nonempty list", path)
-			}
-			if len(config.Apps) == 1 && config.Apps[0] == "*" {
-				config.Apps = nil
-			}
-		}
-	}
-	return config, nil
-}
 
 type script struct {
 	name   string
@@ -102,8 +58,7 @@ func selectScripts(root string, names []string) ([]script, error) {
 
 func runScripts(command string, args []string) error {
 	flags := flag.NewFlagSet("clockctl "+command, flag.ContinueOnError)
-	base := flags.String("config", "configs/clock.toml", "shared TOML config")
-	personal := flags.String("local-config", "configs/clock.local.toml", "optional personal TOML overrides; empty disables them")
+	base, personal := projectconfig.Paths(flags)
 	app := flags.String("app", "", "one clock app; deploy/list otherwise use config selection")
 	url := flags.String("url", "", "override target URL (otherwise AWTRIX_URL, then config)")
 	if err := flags.Parse(args); err != nil {
@@ -112,21 +67,31 @@ func runScripts(command string, args []string) error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
 	}
-	config, err := loadClockConfig(*base, *personal)
+	config, err := projectconfig.Load(*base, *personal)
 	if err != nil {
 		return err
+	}
+	if command == "server-list" {
+		names, err := projectconfig.ServerApps("apps/server/cmd", config.Server.Apps)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			fmt.Println(name)
+		}
+		return nil
 	}
 	if env := os.Getenv("AWTRIX_URL"); env != "" {
-		config.URL = env
+		config.Clock.URL = env
 	}
 	if *url != "" {
-		config.URL = *url
+		config.Clock.URL = *url
 	}
-	client, err := awtrix.NewClient(config.URL)
+	client, err := awtrix.NewClient(config.Clock.URL)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Target: %s\n", config.URL)
+	fmt.Printf("Target: %s\n", config.Clock.URL)
 	if command == "show" {
 		if *app == "" {
 			return fmt.Errorf("show requires --app (make clock-show APP=<name>)")
@@ -145,10 +110,10 @@ func runScripts(command string, args []string) error {
 		return nil
 	}
 	if *app != "" {
-		config.Apps = []string{*app}
+		config.Clock.Apps = []string{*app}
 	}
 	// Read every selected source before making any writes to the device.
-	scripts, err := selectScripts("apps/clock", config.Apps)
+	scripts, err := selectScripts("apps/clock", config.Clock.Apps)
 	if err != nil {
 		return err
 	}

@@ -9,5 +9,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/app ./apps/server/
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
 COPY --from=build /out/app /usr/local/bin/app
+WORKDIR /app
+COPY configs/config.toml ./configs/config.toml
 USER app
 ENTRYPOINT ["/usr/local/bin/app"]

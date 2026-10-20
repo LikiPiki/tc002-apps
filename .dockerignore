@@ -2,6 +2,4 @@
 .github
 bin
 dist
-configs/apps.list
-configs/clock.local.toml
-deploy/.env
+configs/config.local.toml

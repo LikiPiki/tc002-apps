@@ -15,4 +15,4 @@ The initial client expects an HTTP API without authentication. If your setup req
 
 Add Berry apps from `apps/clock/` through the Scripts tab. Go programs in `apps/server/` run on your computer or VPS and are not uploaded to the clock. Reference: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).
 
-To deploy from the repository, copy `configs/clock.local.toml.example` to `configs/clock.local.toml` and set `url` to the clock's address. Run `make clock-list` to check the target, `make clock-deploy` to upload the selected apps, and `make clock-show APP=mackerel` to show one. Personal config is not committed. See [Berry deployment](commands.md#berry-deployment).
+To deploy from the repository, copy `configs/config.local.toml.example` to `configs/config.local.toml` and set `url` under `[clock]` to the clock's address. Run `make clock-list` to check the target, `make clock-deploy` to upload the selected apps, and `make clock-show APP=mackerel` to show one. Personal config is not committed. Notifications use the same clock settings. See [configuration](configuration.md) and [Berry deployment](commands.md#berry-deployment).

@@ -23,10 +23,10 @@ make clock-deploy APP=mackerel  # Upload only one app
 make clock-show APP=mackerel    # Show an installed app and check for runtime errors
 ```
 
-The shared `configs/clock.toml` defaults to the local virtual clock and all Berry apps. Copy `configs/clock.local.toml.example` to `configs/clock.local.toml` and set your physical clock's URL for personal use. The local file is excluded from Git and Docker build context. See the [command reference](../../docs/commands.md#berry-deployment) for configuration and error checks.
+The shared `configs/config.toml` defaults to the local virtual clock and all Berry apps. Copy `configs/config.local.toml.example` to `configs/config.local.toml` and set `[clock] url` for your physical clock. The personal file is excluded from Git and Docker build context. See [configuration](../../docs/configuration.md) and [Berry deployment](../../docs/commands.md#berry-deployment).
 
 You can also install apps through the Scripts tab or the HTTP examples in each app's README.
 
-For local testing, run `make dev`, then `make clock-deploy CLOCK_LOCAL_CONFIG=` to ignore personal overrides. Open http://localhost:8080 and inspect the live preview. Hardware-dependent features still need testing on a physical TC002.
+For local testing, run `make dev`, then `make clock-deploy LOCAL_CONFIG=` to ignore personal overrides. Keep `AWTRIX_URL` unset, open http://localhost:8080, and inspect the live preview. Hardware-dependent features still need testing on a physical TC002.
 
 This directory does not contain Go services or a Docker runtime. See the [development guide](../../docs/development.md) and [contribution guide](../../CONTRIBUTING.md) for details.

@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
+	projectconfig "github.com/LikiPiki/tc002-apps/apps/server/internal/config"
 )
 
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
-		case "deploy", "show", "list":
+		case "deploy", "show", "list", "server-list":
 			if err := runScripts(os.Args[1], os.Args[2:]); err != nil {
 				if err == flag.ErrHelp {
 					return
@@ -26,10 +27,11 @@ func main() {
 		}
 	}
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|list [flags]")
+		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|list|server-list [flags]")
 		fmt.Fprintln(os.Stderr, "Run clockctl deploy --help for Berry upload options.")
 		flag.PrintDefaults()
 	}
+	base, personal := projectconfig.Paths(flag.CommandLine)
 	url := flag.String("url", os.Getenv("AWTRIX_URL"), "AWTRIX NG base URL (or AWTRIX_URL)")
 	text := flag.String("text", "Hello from Go", "notification text")
 	flag.Parse()
@@ -38,7 +40,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	client, err := awtrix.NewClient(*url)
+	config, err := projectconfig.Load(*base, *personal)
+	if err != nil {
+		slog.Error("invalid config", "error", err)
+		os.Exit(1)
+	}
+	if *url != "" {
+		config.Clock.URL = *url
+	}
+	client, err := awtrix.NewClient(config.Clock.URL)
 	if err == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

@@ -1,0 +1,10 @@
+# Shared project defaults. Override selected fields in config.local.toml.
+[clock]
+url = "http://localhost:8080"
+apps = ["*"] # Berry apps to upload from apps/clock/
+
+[server]
+apps = ["*"] # Go commands to build from apps/server/cmd/
+
+[server.worker]
+interval = "1m"

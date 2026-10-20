@@ -1,41 +1,15 @@
 #!/bin/sh
-# Print the selected Go commands, one per line. Run from the repository root.
+# Read server.apps using the same Go TOML parser as the runtime commands.
 set -eu
-CONFIG=${1:-configs/apps.list}
+CONFIG=${1:-${CONFIG:-configs/config.toml}}
+LOCAL_CONFIG=${2-${LOCAL_CONFIG-configs/config.local.toml}}
 
-validate() {
-    case "$1" in
-        ''|*[!a-zA-Z0-9_-]*) printf 'Invalid app name: %s\n' "$1" >&2; exit 1 ;;
-    esac
-    if [ ! -f "apps/server/cmd/$1/main.go" ]; then
-        printf 'Unknown Go app: %s\n' "$1" >&2
-        exit 1
-    fi
-}
-
-APPS=
-if [ -e "$CONFIG" ]; then
-    # Format: one name per line; blank lines and # comments are allowed.
-    while IFS= read -r line || [ -n "$line" ]; do
-        line=${line%%#*}
-        # Word splitting trims whitespace; glob expansion is disabled.
-        set -f
-        for app in $line; do
-            validate "$app"
-            case " $APPS " in *" $app "*) ;; *) APPS="$APPS $app" ;; esac
-        done
-    done < "$CONFIG"
-else
-    for dir in apps/server/cmd/*; do
-        [ -f "$dir/main.go" ] || continue
-        app=${dir#apps/server/cmd/}
-        validate "$app"
-        APPS="$APPS $app"
-    done
+if [ "${CONFIG_RUNNER:-auto}" != docker ] && command -v go >/dev/null 2>&1; then
+    exec go run ./apps/server/cmd/clockctl server-list --config "$CONFIG" --local-config "$LOCAL_CONFIG"
 fi
 
-if [ -z "$APPS" ]; then
-    printf 'No apps selected in %s\n' "$CONFIG" >&2
-    exit 1
-fi
-for app in $APPS; do printf '%s\n' "$app"; done
+# Docker-only users do not need Go installed on the build machine.
+docker build --build-arg APP=clockctl -t tc002-apps/clockctl:config . >/dev/null
+exec docker run --rm --workdir /repo \
+    --mount "type=bind,source=$(pwd),target=/repo,readonly" \
+    tc002-apps/clockctl:config server-list --config "$CONFIG" --local-config "$LOCAL_CONFIG"

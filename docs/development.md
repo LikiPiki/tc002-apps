@@ -46,7 +46,7 @@ You can also run the Go client directly on your computer:
 AWTRIX_URL=http://localhost:8080 go run ./apps/server/cmd/clockctl --text 'Native Go works'
 ```
 
-Upload Berry apps from `apps/clock/` with `make clock-deploy CLOCK_LOCAL_CONFIG=` and show one with `make clock-show APP=mackerel CLOCK_LOCAL_CONFIG=`. These commands use the shared local URL without personal overrides; leave `AWTRIX_URL` unset. You can also use the Scripts tab. Go programs in `apps/server/` run outside AWTRIX and publish over its API. See [Berry deployment](commands.md#berry-deployment) for configuration and error-checking details.
+Upload Berry apps from `apps/clock/` with `make clock-deploy LOCAL_CONFIG=` and show one with `make clock-show APP=mackerel LOCAL_CONFIG=`. These commands use the shared local URL without personal overrides; leave `AWTRIX_URL` unset. You can also use the Scripts tab. Dev containers ignore personal overrides and use the shared project TOML; their virtual-clock network address is set by Compose. See [configuration](configuration.md) and [Berry deployment](commands.md#berry-deployment).
 
 ## What dev-check verifies
 
@@ -80,4 +80,4 @@ The upstream commit is pinned through `AWTRIX_REV` in `dev/Dockerfile.awtrix`. W
 - **The first build is slow:** it compiles the C++ engine and downloads dependencies. Check Docker's build output; cached rebuilds are much faster.
 - **AWTRIX fails its health check:** run `make dev-logs` to inspect startup errors. The service must become healthy before `make dev-check` sends a notification.
 - **A notification is not visible:** open the web UI before running `make dev-notify` again; notifications are temporary.
-- **Your new app is missing from the build:** run `make list-apps` and check `configs/apps.list`. An absent config selects all apps; an existing config selects only its listed names.
+- **Your new app is missing from the build:** run `make list-apps` and check `server.apps` in the project TOML and personal overrides. Use `["*"]` to select all Go commands.

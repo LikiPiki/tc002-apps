@@ -1,112 +1,82 @@
 # Go command reference
 
-Run commands from the repository root. All commands described here run outside the clock, on your computer or VPS. Sources live in `apps/server/`. Native examples require Go 1.24+; Docker examples only require Docker with Compose v2.
+Run commands from the repository root. All commands here run outside the clock, on a computer or VPS. Sources live in `apps/server/`. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
 
-## clockctl
+Both commands read `configs/config.toml` and optional `configs/config.local.toml`. See [Project configuration](configuration.md) for the schema, merging, paths, and Docker mounts.
 
-Send a single notification to an AWTRIX NG instance:
+## clockctl notifications
 
 ```sh
-AWTRIX_URL=http://192.168.1.50 go run ./apps/server/cmd/clockctl --text 'Hello TC002'
-# Or set the URL explicitly:
+# Use clock.url from the project config:
+go run ./apps/server/cmd/clockctl --text 'Hello TC002'
+# Or explicitly override the URL:
 go run ./apps/server/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
 ```
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--url` | Value of `AWTRIX_URL` | Absolute HTTP or HTTPS base URL of AWTRIX NG |
+| `--url` | `AWTRIX_URL`, then TOML `clock.url` | Absolute HTTP/HTTPS base URL |
 | `--text` | `Hello from Go` | Notification text |
+| `--config` | `configs/config.toml` | Shared config; default path can use `TC002_CONFIG` |
+| `--local-config` | `configs/config.local.toml` | Optional overrides; empty disables them; default path can use `TC002_LOCAL_CONFIG` |
 
-An explicit `--url` takes precedence over `AWTRIX_URL`. The client posts to `/api/v1/notifications` with a 10-second timeout. Invalid URLs, failed requests, and non-2xx responses produce a nonzero exit status. Authentication is not implemented yet.
+The client posts to `/api/v1/notifications` with a 10-second timeout. Invalid URLs, failed requests, and non-2xx responses produce a nonzero exit status. Authentication is not implemented yet.
 
-For Docker, create `deploy/.env` from `deploy/.env.example`, set `AWTRIX_URL`, then run:
-
-```sh
-docker compose --env-file deploy/.env -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from Docker'
-```
-
-For the local virtual clock, use `make dev` followed by `make dev-notify TEXT="Hello!"`.
-
-### Berry deployment
-
-`clockctl deploy`, `clockctl show`, and `clockctl list` use a shared TOML config plus optional personal overrides. Run these commands from the repository root:
+For production Docker, set `clock.url` in your personal TOML and run:
 
 ```sh
-make clock-list                 # Show the target and selected source files; no device access
-make clock-deploy               # Upload selected scripts
-make clock-deploy APP=mackerel  # Upload one script regardless of config selection
-make clock-show APP=mackerel    # Show the installed script and check its runtime status
+docker compose -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from Docker'
 ```
 
-These Make commands require Go 1.24+. The base config `configs/clock.toml` is committed:
+For the virtual clock, use `make dev` followed by `make dev-notify TEXT="Hello!"`.
 
-```toml
-# Local virtual clock
-url = "http://localhost:8080"
-
-# All Berry apps; or a list such as ["cigar", "mackerel"]
-apps = ["*"]
-```
-
-- `url` is the target's base HTTP/HTTPS URL.
-- `apps = ["*"]` discovers all `apps/clock/*/main.be` files in alphabetical order. If neither config specifies `apps`, discovery is also the default.
-- Set `apps` to a nonempty list such as `["cigar", "seagull"]` to deploy a subset. An empty list, unknown field, invalid name, missing source, or empty source is an error.
-
-For your physical clock, create the optional personal config:
+## Berry deployment
 
 ```sh
-cp configs/clock.local.toml.example configs/clock.local.toml
-# Edit the URL in configs/clock.local.toml, then inspect the selection:
-make clock-list
+make clock-list                 # Target and selected files; no device access
+make clock-deploy               # Upload clock.apps from TOML
+make clock-deploy APP=mackerel  # Upload one app instead of the config selection
+make clock-show APP=mackerel    # Show an installed app and check its error status
 ```
 
-Only fields present in the personal config override the base config. For example, `url = "http://192.168.1.50"` keeps the base app selection. Arrays replace the selection rather than append to it. Set `apps = ["*"]` to restore automatic discovery. The personal file is ignored by Git and Docker builds; a missing personal file is allowed, but a missing base config or malformed TOML fails the command. TOML supports `#` comments and multiline arrays.
-
-Precedence for deployment URLs: explicit CLI `--url` > `AWTRIX_URL` environment variable > personal config > base config. The legacy notification mode (`clockctl --text ...`) continues to use its `--url` flag or `AWTRIX_URL`, not these TOML files.
-
-To target the local virtual clock without personal overrides:
+These Make commands require Go. For the local virtual clock without personal settings:
 
 ```sh
 make dev
-make clock-deploy CLOCK_LOCAL_CONFIG=
-make clock-show APP=mackerel CLOCK_LOCAL_CONFIG=
+make clock-deploy LOCAL_CONFIG=
+make clock-show APP=mackerel LOCAL_CONFIG=
 ```
 
-Ensure `AWTRIX_URL` is unset when relying on config URLs. Alternatively, override it explicitly: `AWTRIX_URL=http://localhost:8080 make clock-deploy`.
+Keep `AWTRIX_URL` unset when relying on config URLs. To explicitly override the target, use `AWTRIX_URL=http://localhost:8080 make clock-deploy`.
 
-For separate device profiles, keep a private TOML file outside the repository and pass its path:
-
-```sh
-make clock-deploy CLOCK_LOCAL_CONFIG="$HOME/.config/tc002/office.toml"
-```
-
-`CLOCK_CONFIG` can also select a different base file. Direct CLI equivalents:
+Direct CLI equivalents:
 
 ```sh
 go run ./apps/server/cmd/clockctl deploy --app mackerel
 go run ./apps/server/cmd/clockctl show --app mackerel
 go run ./apps/server/cmd/clockctl list --local-config ''
+go run ./apps/server/cmd/clockctl server-list # Go build selection, names only
 ```
 
-Deployment validates and reads all selected local sources before writing to the device. It checks that Berry scripting is running, uploads each source, requires `error: null`, and checks the installed script's enabled/error status. It stops on the first failure; earlier successful uploads are not rolled back. Existing scripts with the same names are replaced, preserving AWTRIX's saved app data. Apps not selected are not deleted.
+Deployment reads all selected sources before writing to the device. It checks that Berry scripting is running, uploads each source, requires `error: null`, and checks the installed script's enabled/error status. It stops on the first failure; earlier successful uploads are not rolled back. Same-name scripts are replaced, preserving AWTRIX's saved app data. Unselected apps are not deleted.
 
-Deployment does not explicitly switch the active screen. Use `clock-show` to select an app, allow its `draw()` to execute, and check its error status again. This is not a full visual or hardware test; later callbacks can still fail. The normal app rotation continues after showing an app.
+Deployment does not explicitly switch the current screen. `clock-show` selects an app, allows `draw()` to execute, and checks its error status again. Later callbacks can still fail; this is not a full visual or hardware test. Normal rotation continues afterwards. AWTRIX compiles the source; no local Berry compiler is needed.
 
-The source is compiled on AWTRIX; no local Berry compiler is needed. `configs/apps.list` controls Go builds only and has no effect on Berry deployment.
-
-For a Docker-only workflow, first build the `clockctl` image (include it in your Go build selection), then mount the repository read-only so its config and scripts are available:
+To deploy scripts from Docker, mount the repository read-only so the config and source are available:
 
 ```sh
+# Include clockctl in server.apps before building its image.
+make docker-build
 docker run --rm --workdir /repo \
   --mount "type=bind,source=$PWD,target=/repo,readonly" \
   tc002-apps/clockctl:local list
 ```
 
-Replace `list` with `deploy` or `show --app mackerel`. Config URLs must be reachable from the container; `localhost` inside a container is not the host. Personal config is read from the bind mount, not baked into the image.
+Replace `list` with `deploy` or `show --app mackerel`. Inside Docker, `localhost` means the container itself; use a reachable physical-clock address or the appropriate container network address. Production Compose mounts config only, not Berry source files.
 
 ## worker
 
-The worker currently logs `worker tick`; it does not fetch data or send anything to the clock.
+The worker currently logs `worker tick`; it does not fetch data or publish to the clock.
 
 ```sh
 go run ./apps/server/cmd/worker --once
@@ -116,19 +86,10 @@ go run ./apps/server/cmd/worker --interval 30s
 | Option | Default | Description |
 | --- | --- | --- |
 | `--once` | `false` | Run once and exit |
-| `--interval` | `1m` | Positive Go duration between runs, such as `30s` or `5m` |
+| `--interval` | TOML `server.worker.interval` (`1m`) | Explicit positive Go duration override |
+| `--config` | `configs/config.toml` | Shared project config |
+| `--local-config` | `configs/config.local.toml` | Optional personal config; empty disables it |
 
-The first run happens immediately. In periodic mode, SIGINT or SIGTERM stops the process gracefully. The interval must be positive, including when `--once` is used.
+The first run happens immediately. SIGINT or SIGTERM stops periodic mode gracefully. The interval must be positive, including when `--once` is used. The effective interval is included in each log entry.
 
-## Deployment environment
-
-`deploy/.env` provides Compose interpolation values; it is not automatically read by native Go commands.
-
-| Variable | Example/default | Used by |
-| --- | --- | --- |
-| `AWTRIX_URL` | Example: `http://192.168.1.50` | The `clockctl` container |
-| `WORKER_INTERVAL` | Default: `1m` | The worker's `--interval` argument |
-
-Inside Docker, `localhost` refers to the container itself. Use a clock address reachable from the container. The development Compose file already points `clockctl` at `http://awtrix:8080`.
-
-Pass `--help` to either Go command to see its flags.
+Pass `--help` to either command, or to a `clockctl` subcommand, for its flags.

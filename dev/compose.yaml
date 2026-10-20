@@ -23,6 +23,10 @@ services:
         APP: clockctl
     environment:
       AWTRIX_URL: http://awtrix:8080
+      TC002_LOCAL_CONFIG: ""
+    volumes:
+      - ../configs:/app/configs:ro
+      - ../apps/clock:/app/apps/clock:ro
     depends_on:
       awtrix:
         condition: service_healthy
@@ -33,6 +37,10 @@ services:
       context: ..
       args:
         APP: worker
+    environment:
+      TC002_LOCAL_CONFIG: ""
+    volumes:
+      - ../configs:/app/configs:ro
 
 volumes:
   awtrix-data:

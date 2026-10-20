@@ -3,8 +3,8 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-if [ ! -f "$ROOT/deploy/.env" ]; then
-    printf '%s\n' 'Create deploy/.env from deploy/.env.example before deployment.' >&2
+if [ ! -f "$ROOT/configs/config.toml" ]; then
+    printf '%s\n' 'Missing configs/config.toml; deploy the shared project config first.' >&2
     exit 1
 fi
 
@@ -19,7 +19,7 @@ if [ "$#" -eq 0 ]; then
 fi
 
 compose() {
-    docker compose --env-file "$ROOT/deploy/.env" -f "$ROOT/deploy/compose.yaml" "$@"
+    docker compose -f "$ROOT/deploy/compose.yaml" "$@"
 }
 
 compose config --quiet

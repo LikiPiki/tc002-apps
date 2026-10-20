@@ -33,12 +33,10 @@ tc002-apps/
 │       └── internal/awtrix/
 │           └── client.go          Shared AWTRIX NG HTTP client
 ├── configs/
-│   ├── apps.list.example          Copy to apps.list to select Go apps to build
-│   ├── clock.toml                 Shared Berry deployment defaults
-│   └── clock.local.toml.example   Personal clock config template
+│   ├── config.toml                Shared clock, build, and runtime settings
+│   └── config.local.toml.example  Personal project config template
 ├── deploy/                        PRODUCTION — run Go services on your VPS
 │   ├── compose.yaml               Services, images, and runtime settings
-│   ├── .env.example               Clock URL and worker interval template
 │   └── deploy.sh                  Deploy selected services or loaded images
 ├── dev/                           LOCAL — virtual clock for development
 │   ├── compose.yaml               AWTRIX + Go tools, isolated from production
@@ -49,6 +47,7 @@ tc002-apps/
 │   ├── setup.md                   Connect to a physical TC002
 │   ├── development.md             Virtual clock, commands, troubleshooting
 │   ├── commands.md                Go flags and environment variables
+│   ├── configuration.md           Unified TOML settings and personal overrides
 │   ├── deployment.md              VPS deployment, image transfer, updates
 │   └── architecture.md            Runtime boundaries and data flow
 ├── .github/workflows/ci.yml        Go checks, builds, and production Docker builds
@@ -64,9 +63,7 @@ tc002-apps/
 Generated locally (not committed):
   bin/<app>                        Native Go binaries
   dist/<app>.tar.gz                Docker images exported for transfer to a VPS
-  configs/apps.list               Your Go app selection (optional)
-  configs/clock.local.toml        Your clock URL and Berry app selection (optional)
-  deploy/.env                     Your deployment settings
+  configs/config.local.toml       Your clock, app selections, and runtime overrides
 ```
 
 ### Where to start
@@ -77,7 +74,7 @@ Generated locally (not committed):
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Add `apps/clock/<name>/main.be` and upload it through Scripts |
 | Process data on my VPS | [Server apps](apps/server/README.md) | Add `apps/server/cmd/<name>/main.go` |
-| Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Create `configs/apps.list`, then run `make docker-save` |
+| Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Set `server.apps` in your personal TOML, then run `make docker-save` |
 | Contribute a change | [Contributing](CONTRIBUTING.md) | Follow the app layout and run the relevant checks |
 
 ### How the pieces connect
@@ -128,7 +125,7 @@ The notification command needs a reachable AWTRIX NG instance without API authen
 
 ### Select what to build
 
-Select server-side Go apps in `configs/apps.list`, with one directory name from `apps/server/cmd/` per line. If the file is absent, all Go apps are built. Start with `cp configs/apps.list.example configs/apps.list`; the example selects only `worker`. This config does not select or install clock-side Berry apps.
+All settings use `configs/config.toml` and optional `configs/config.local.toml` overrides. Start with `cp configs/config.local.toml.example configs/config.local.toml`. Under `[server]`, set `apps = ["worker"]` to build a subset, or `["*"]` for all Go commands. The default builds all commands. Under `[clock]`, `apps` selects Berry scripts independently. See [Project configuration](docs/configuration.md).
 
 ```sh
 make list-apps
@@ -143,25 +140,24 @@ This selection applies to `make build`, `make docker-build`, and `make docker-sa
 ### Deploy Berry apps to the clock
 
 ```sh
-cp configs/clock.local.toml.example configs/clock.local.toml
-# Set your clock's URL in configs/clock.local.toml.
+cp configs/config.local.toml.example configs/config.local.toml
+# Set [clock] url in configs/config.local.toml.
 make clock-list
 make clock-deploy          # All Berry apps, or the list selected in clock config
 make clock-show APP=<name>
 ```
 
-Use `make clock-deploy APP=<name>` to update just one app. The committed `configs/clock.toml` defaults to the local virtual clock; personal overrides are excluded from Git. To use the shared defaults without personal overrides, pass `CLOCK_LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for config precedence and error checks.
+Use `make clock-deploy APP=<name>` to update just one app. Shared TOML defaults to the local virtual clock; personal overrides are excluded from Git. To use shared defaults alone, pass `LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for error checks.
 
 ## Docker
 
 ```sh
-cp deploy/.env.example deploy/.env
-# Edit deploy/.env before sending notifications to a physical clock.
+# Configure configs/config.local.toml before sending to a physical clock.
 sh deploy/deploy.sh worker
-docker compose --env-file deploy/.env -f deploy/compose.yaml logs -f worker
+docker compose -f deploy/compose.yaml logs -f worker
 ```
 
-The worker is a placeholder and logs a tick at the configured interval. To stop the deployment, run `docker compose --env-file deploy/.env -f deploy/compose.yaml down`. For image-only deployment and platform selection, see the [VPS deployment guide](docs/deployment.md).
+Containers read the same TOML files through a read-only mount; no `.env` file is needed. The worker is a placeholder and logs a tick at `server.worker.interval`. Stop it with `docker compose -f deploy/compose.yaml down`. See [VPS deployment](docs/deployment.md) for image-only deployment and platform selection.
 
 ## Local testing without a clock
 
