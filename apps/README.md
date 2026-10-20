@@ -1,9 +1,12 @@
-# On-device apps
+# Apps by runtime
 
-Each app lives in its own directory: `apps/<name>/main.be`, alongside a `README.md` describing its settings and input data.
+Apps are separated by where they run:
 
-Apps run in the Berry interpreter embedded in AWTRIX NG. This directory is currently a placeholder; the first app will target a specific use case and firmware version.
+| Directory | Language | Runs on | Delivery |
+| --- | --- | --- | --- |
+| [`clock/`](clock/) | Berry (`.be`) | TC002 inside AWTRIX NG | Upload through the Scripts tab |
+| [`server/`](server/) | Go (`.go`) | VPS or development computer | Native binary or Docker image |
 
-Install apps through the Scripts tab in the clock's web UI. Automated upload through `clockctl` is planned but not implemented yet.
+Go binaries and Docker images are not uploaded to the clock. Berry scripts are not included in the server images. A feature may have both a server component that processes data and a clock component that renders it; keep each component in its runtime directory and document how they communicate.
 
-To test without hardware, run `make dev` from the repository root and open http://localhost:8080. Upload the script in the Scripts tab and inspect the live display. See the [development guide](../docs/development.md) and [contribution guide](../CONTRIBUTING.md) for details.
+`configs/apps.list` selects only the Go commands under `apps/server/cmd/`. It does not select or install Berry scripts. See the [architecture guide](../docs/architecture.md) for the data flow.

@@ -12,13 +12,13 @@ list-apps:
 	@sh tools/select-apps.sh "$$CONFIG"
 
 check:
-	@test -z "$$(gofmt -l cmd internal)" || (gofmt -l cmd internal; exit 1)
+	@test -z "$$(gofmt -l apps/server)" || (gofmt -l apps/server; exit 1)
 	go vet ./...
 	go test ./...
 
 build:
 	@set -eu; apps=$$(sh tools/select-apps.sh "$$CONFIG"); \
-	for app in $$apps; do go build -o "bin/$$app" "./cmd/$$app"; done
+	for app in $$apps; do go build -o "bin/$$app" "./apps/server/cmd/$$app"; done
 
 docker-build:
 	@set -eu; apps=$$(sh tools/select-apps.sh "$$CONFIG"); \

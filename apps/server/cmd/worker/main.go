@@ -23,7 +23,7 @@ func main() {
 	defer stop()
 
 	run := func() {
-		// TODO: fetch data, transform it and publish through internal/awtrix.
+		// TODO: fetch data, transform it and publish through the server's awtrix client.
 		slog.Info("worker tick", "mode", "placeholder")
 	}
 	run()

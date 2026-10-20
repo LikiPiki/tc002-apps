@@ -31,7 +31,7 @@ make build
 make docker-build
 ```
 
-Build selection is controlled by `configs/apps.list`: directory names from `cmd/`, one per line. Blank lines and `#` comments are allowed. For example:
+Build selection is controlled by `configs/apps.list`: directory names from `apps/server/cmd/`, one per line. This selects Go programs running outside the clock; Berry apps in `apps/clock/` are installed separately through AWTRIX NG. Blank lines and `#` comments are allowed. For example:
 
 ```text
 worker
@@ -42,7 +42,7 @@ If the config is absent, **all** Go apps are built. If it exists, only the liste
 
 `make check` and the local development environment check the project independently of production build selection. Existing files in `bin/` and `dist/` are not removed automatically. Transfer only the archives for the apps you selected.
 
-To build a new Docker app, add a `cmd/<name>` directory. To manage it through Compose, also add a service with the same name and image `tc002-apps/<name>:local`.
+To build a new Docker app, add an `apps/server/cmd/<name>` directory. To manage it through Compose, also add a service with the same name and image `tc002-apps/<name>:local`.
 
 On the VPS, specify which services to deploy:
 

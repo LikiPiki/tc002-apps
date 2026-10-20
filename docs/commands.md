@@ -1,15 +1,15 @@
 # Go command reference
 
-Run commands from the repository root. Native examples require Go 1.24+; Docker examples only require Docker with Compose v2.
+Run commands from the repository root. All commands described here run outside the clock, on your computer or VPS. Sources live in `apps/server/`. Native examples require Go 1.24+; Docker examples only require Docker with Compose v2.
 
 ## clockctl
 
 Send a single notification to an AWTRIX NG instance:
 
 ```sh
-AWTRIX_URL=http://192.168.1.50 go run ./cmd/clockctl --text 'Hello TC002'
+AWTRIX_URL=http://192.168.1.50 go run ./apps/server/cmd/clockctl --text 'Hello TC002'
 # Or set the URL explicitly:
-go run ./cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
+go run ./apps/server/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
 ```
 
 | Option | Default | Description |
@@ -32,8 +32,8 @@ For the local virtual clock, use `make dev` followed by `make dev-notify TEXT="H
 The worker currently logs `worker tick`; it does not fetch data or send anything to the clock.
 
 ```sh
-go run ./cmd/worker --once
-go run ./cmd/worker --interval 30s
+go run ./apps/server/cmd/worker --once
+go run ./apps/server/cmd/worker --interval 30s
 ```
 
 | Option | Default | Description |

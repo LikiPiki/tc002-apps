@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/apps/server/internal/awtrix"
 )
 
 func main() {

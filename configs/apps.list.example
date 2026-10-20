@@ -1,4 +1,5 @@
 # Copy to configs/apps.list to build only the apps you need.
-# Without configs/apps.list all commands in cmd/ are built.
+# Without configs/apps.list all commands in apps/server/cmd/ are built.
+# These programs run on a VPS/computer, not on the clock. Berry apps are separate.
 worker
 # clockctl

@@ -23,8 +23,8 @@ The first virtual-clock build downloads and compiles AWTRIX NG and can take seve
 
 ## Adding a Go app
 
-1. Add the entry point at `cmd/<name>/main.go`. Use a directory name containing only letters, digits, hyphens, or underscores.
-2. Put reusable or app-specific processing logic in `internal/` and add meaningful tests for its behavior.
+1. Add the entry point at `apps/server/cmd/<name>/main.go`. These programs run on a VPS or computer, not on the clock. Use a directory name containing only letters, digits, hyphens, or underscores.
+2. Put reusable or app-specific processing logic in `apps/server/internal/` and add meaningful tests for its behavior.
 3. Document configuration, flags, data sources, and whether the command is one-off or long-running.
 4. Build it with `make build` or `make docker-build`. If you have a local `configs/apps.list`, add the app to it or remove the config to build all apps.
 5. For managed deployment, add a service in `deploy/compose.yaml` using build argument `APP: <name>` and image `tc002-apps/<name>:local`. Use the `tools` profile for one-off utilities. Add a service in `dev/compose.yaml` if the app needs a containerized local integration workflow.
@@ -33,8 +33,8 @@ CI currently builds the Go binaries and the Docker services declared in producti
 
 ## Adding a Berry app
 
-1. Add `apps/<name>/main.be` and a `README.md` describing its purpose, supported AWTRIX version, settings, and expected input data.
-2. Place shared icons in `assets/icons/`, with source and license information.
+1. Add `apps/clock/<name>/main.be` and a `README.md` describing its purpose, supported AWTRIX version, settings, and expected input data. These apps run inside AWTRIX NG on the clock.
+2. Place shared icons in `apps/clock/assets/icons/`, with source and license information. Keep app-specific assets alongside the app.
 3. Run `make dev`, upload the script through the Scripts tab, and inspect its output and runtime errors.
 4. Check hardware-dependent features on a physical TC002. The headless environment does not emulate all hardware.
 

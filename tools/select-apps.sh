@@ -7,7 +7,7 @@ validate() {
     case "$1" in
         ''|*[!a-zA-Z0-9_-]*) printf 'Invalid app name: %s\n' "$1" >&2; exit 1 ;;
     esac
-    if [ ! -f "cmd/$1/main.go" ]; then
+    if [ ! -f "apps/server/cmd/$1/main.go" ]; then
         printf 'Unknown Go app: %s\n' "$1" >&2
         exit 1
     fi
@@ -26,9 +26,9 @@ if [ -e "$CONFIG" ]; then
         done
     done < "$CONFIG"
 else
-    for dir in cmd/*; do
+    for dir in apps/server/cmd/*; do
         [ -f "$dir/main.go" ] || continue
-        app=${dir#cmd/}
+        app=${dir#apps/server/cmd/}
         validate "$app"
         APPS="$APPS $app"
     done

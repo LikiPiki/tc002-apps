@@ -8,9 +8,9 @@ This project targets the **Ulanzi TC002 running AWTRIX NG**. The stock Ulanzi fi
 4. Send a notification:
 
    ```sh
-   AWTRIX_URL=http://192.168.1.50 go run ./cmd/clockctl --text 'Hello TC002'
+   AWTRIX_URL=http://192.168.1.50 go run ./apps/server/cmd/clockctl --text 'Hello TC002'
    ```
 
 The initial client expects an HTTP API without authentication. If your setup requires authentication, client support must be added before use.
 
-Add Berry apps through the Scripts tab. Reference: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).
+Add Berry apps from `apps/clock/` through the Scripts tab. Go programs in `apps/server/` run on your computer or VPS and are not uploaded to the clock. Reference: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).

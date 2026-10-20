@@ -40,10 +40,10 @@ make dev-notify TEXT="Hello TC002"
 You can also run the Go client directly on your computer:
 
 ```sh
-AWTRIX_URL=http://localhost:8080 go run ./cmd/clockctl --text 'Native Go works'
+AWTRIX_URL=http://localhost:8080 go run ./apps/server/cmd/clockctl --text 'Native Go works'
 ```
 
-Use the Scripts tab to manually upload Berry apps from `apps/`, inspect rendering, and check runtime errors. Automated script upload is not implemented yet.
+Use the Scripts tab to manually upload Berry apps from `apps/clock/`, inspect rendering, and check runtime errors. Go programs in `apps/server/` run outside AWTRIX and publish over its API. Automated script upload is not implemented yet.
 
 ## What dev-check verifies
 
