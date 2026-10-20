@@ -1,16 +1,16 @@
-# Настройка часов
+# Clock setup
 
-Проект ориентирован на **Ulanzi TC002 с AWTRIX NG**, а не штатную прошивку Ulanzi и не AWTRIX 3.
+This project targets the **Ulanzi TC002 running AWTRIX NG**. The stock Ulanzi firmware and AWTRIX 3 are not supported.
 
-1. Установить AWTRIX NG по [официальной инструкции TC002](https://blueforcer.github.io/awtrix-ng/tc002/getting-started/tc002/).
-2. Подключить часы к Wi-Fi и открыть их веб-интерфейс.
-3. Узнать IP-адрес часов и проверить доступность с машины, запускающей Go-команды.
-4. Отправить уведомление:
+1. Install AWTRIX NG using the [official TC002 instructions](https://blueforcer.github.io/awtrix-ng/tc002/getting-started/tc002/).
+2. Connect the clock to Wi-Fi and open its web UI.
+3. Find the clock's IP address and check that it is reachable from the machine running the Go commands.
+4. Send a notification:
 
    ```sh
    AWTRIX_URL=http://192.168.1.50 go run ./cmd/clockctl --text 'Hello TC002'
    ```
 
-Первоначальный клиент рассчитан на доступный без авторизации HTTP API. Если в вашей конфигурации нужна авторизация, её поддержку нужно добавить перед использованием.
+The initial client expects an HTTP API without authentication. If your setup requires authentication, client support must be added before use.
 
-Berry-приложения добавляются во вкладке Scripts. Справочник: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).
+Add Berry apps through the Scripts tab. Reference: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).

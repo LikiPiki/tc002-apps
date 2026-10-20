@@ -1,3 +1,3 @@
-# Иконки
+# Icons
 
-Здесь будут иконки и анимации приложений. Рядом с импортированными ресурсами указываем источник и лицензию.
+Store app icons and animations here. Include the source and license alongside any imported assets.

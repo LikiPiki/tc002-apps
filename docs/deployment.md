@@ -1,28 +1,29 @@
-# Развёртывание на VPS
+# VPS deployment
 
-## Требования
+## Requirements
 
-- Linux VPS с Git, Docker Engine и плагином Docker Compose v2.
-- Пользователь с правом запуска Docker.
-- Для отправки на часы — сетевой маршрут от контейнера до TC002. Домашний IP и `.local`-имя обычно недоступны с VPS; используйте VPN-маршрут в домашнюю сеть или, после реализации MQTT, доступный обеим сторонам брокер.
+- A Linux VPS with Docker Engine and the Docker Compose v2 plugin. Source-based deployment also requires Git.
+- A user with permission to run Docker.
+- Make and `gzip` on the build machine if you use the Make-based build and image-export commands.
+- A network route from the container to the TC002 for publishing to the clock. Home IP addresses and `.local` names are usually unreachable from a VPS. Use a VPN route to your home network or, once MQTT support is implemented, a broker reachable by both sides.
 
-## Первое развёртывание
+## Initial deployment
 
-На VPS:
+On the VPS:
 
 ```sh
 git clone https://github.com/LikiPiki/tc002-apps.git
 cd tc002-apps
 cp deploy/.env.example deploy/.env
-# Отредактируйте deploy/.env: адрес часов и интервал выполнения.
+# Edit deploy/.env: set the clock address and worker interval.
 sh deploy/deploy.sh
 ```
 
-Скрипт проверяет Compose-конфигурацию, собирает образ и запускает воркер в фоне. Перезапуск после перезагрузки обеспечивается `restart: unless-stopped` при работающем Docker daemon.
+The script validates the Compose configuration, builds the image, and starts the worker in the background. With the Docker daemon running, `restart: unless-stopped` restarts it after a reboot.
 
-## Выбор приложений
+## Selecting apps
 
-Go-команды можно собирать независимо:
+Go commands can be built independently:
 
 ```sh
 make list-apps
@@ -30,66 +31,70 @@ make build
 make docker-build
 ```
 
-Сборкой управляет `configs/apps.list`: имена папок из `cmd/`, по одному на строку; пустые строки и комментарии `#` допустимы. Например:
+Build selection is controlled by `configs/apps.list`: directory names from `cmd/`, one per line. Blank lines and `#` comments are allowed. For example:
 
 ```text
 worker
 # clockctl
 ```
 
-Если конфига нет, собираются **все** Go-приложения. Если конфиг есть — только перечисленные и их зависимости; пустой список или неизвестное имя считаются ошибкой. Начните с `cp configs/apps.list.example configs/apps.list`. Этот персональный конфиг не коммитится. Другой путь можно задать через `make build CONFIG=configs/vps.list` (отсутствующий файл также означает сборку всех приложений).
+If the config is absent, **all** Go apps are built. If it exists, only the listed apps and their dependencies are built. An empty list or an unknown name is an error. Start with `cp configs/apps.list.example configs/apps.list`. This local config is excluded from Git. To use another path, run `make build CONFIG=configs/vps.list`; an absent file at that path also means all apps will be built.
 
-`make check` и локальное dev-окружение проверяют весь проект независимо от списка production-сборки. Существующие файлы в `bin/` и `dist/` автоматически не удаляются: переносите архивы именно выбранных приложений.
+`make check` and the local development environment check the project independently of production build selection. Existing files in `bin/` and `dist/` are not removed automatically. Transfer only the archives for the apps you selected.
 
-Для нового Docker-приложения достаточно папки `cmd/<name>`; для управляемого запуска через Compose также добавьте сервис с тем же именем и image `tc002-apps/<name>:local`.
+To build a new Docker app, add a `cmd/<name>` directory. To manage it through Compose, also add a service with the same name and image `tc002-apps/<name>:local`.
 
-На VPS укажите, какие сервисы развернуть:
+On the VPS, specify which services to deploy:
 
 ```sh
 sh deploy/deploy.sh worker
-# Когда появятся другие сервисы: sh deploy/deploy.sh weather monitor
+# Once other services exist: sh deploy/deploy.sh weather monitor
 ```
 
-Скрипт собирает и обновляет только указанные сервисы, не запускает зависимости и не удаляет другие контейнеры. Без аргументов запускается только `worker`. `clockctl` — одноразовая CLI-утилита: используйте `compose run`, а не постоянный сервис.
+The script builds and updates only the specified services. It does not start dependencies or remove other containers. With no arguments, it starts only `worker`. `clockctl` is a one-off CLI tool: use `compose run` rather than running it as a persistent service.
 
-## Перенос только готового образа
+The app-selection config controls the Make build commands only. `deploy.sh` selects services through its arguments and builds them unless `--no-build` is set. For a config-selected build on the VPS, run `make docker-build`, then `sh deploy/deploy.sh --no-build worker` for the service you selected. Direct Compose build commands also do not read `configs/apps.list`.
 
-Чтобы на VPS не собирать Go и не отправлять исходники:
+## Transferring prebuilt images
+
+To deploy without building Go on the VPS or transferring source code:
 
 ```sh
-# На машине сборки:
-cp configs/apps.list.example configs/apps.list # пример выбирает worker
+# On the build machine:
+cp configs/apps.list.example configs/apps.list # The example selects worker.
 make docker-save
 scp dist/worker.tar.gz user@vps:/opt/tc002-apps/
-# Также передайте deploy/compose.yaml и deploy/deploy.sh в /opt/tc002-apps/deploy/.
+# Also transfer deploy/compose.yaml and deploy/deploy.sh to /opt/tc002-apps/deploy/.
 ```
 
-Создайте на VPS `deploy/.env` по примеру `deploy/.env.example`. Затем в `/opt/tc002-apps`:
+Create `/opt/tc002-apps/deploy` on the VPS before transferring files. Create `deploy/.env` using `deploy/.env.example` as a template. Then, from `/opt/tc002-apps`:
 
 ```sh
 docker load -i worker.tar.gz
 sh deploy/deploy.sh --no-build worker
 ```
 
-Архив содержит только выбранный runtime-образ, без исходников и компилятора. Для запуска нужны Compose-файл, скрипт и `.env`; полный Git checkout не требуется. Архитектура образа должна совпадать с VPS: сборка на ARM Mac по умолчанию даёт ARM64. Для x86-64 VPS собирайте на x86-64 машине или явно выберите платформу:
+The archive contains only the selected runtime image, without source code or a compiler. Deployment requires the Compose file, script, and `.env`; a full Git checkout is not required. The image architecture must match the VPS. An ARM Mac builds ARM64 images by default. For an x86-64 VPS, build on an x86-64 machine or explicitly select the platform:
 
 ```sh
 DOCKER_DEFAULT_PLATFORM=linux/amd64 make docker-save
 ```
 
-Кросс-платформенная сборка требует поддержки эмуляции соответствующей архитектуры в Docker. При откате в этом режиме загрузите архив предыдущего образа и повторите запуск с `--no-build`.
+Cross-platform builds require Docker support for emulating the target architecture. To roll back a prebuilt-image deployment, load the previous image archive and redeploy with `--no-build`.
 
-Сейчас воркер только пишет `worker tick` в лог. Подключение к часам проверяется отдельно:
+The worker currently only logs `worker tick`. Test connectivity to the clock separately:
 
 ```sh
 docker compose --env-file deploy/.env -f deploy/compose.yaml run --rm --build clockctl --text 'Hello from VPS'
 ```
 
-`deploy/.env` исключён из Git и Docker build context. Храните реальные настройки на VPS.
+In an image-only deployment, load the `clockctl` image separately if you need it, and omit `--build` from this command.
 
-## Логи и остановка
+`deploy/.env` is excluded from Git and the Docker build context. Keep your actual settings on the VPS.
 
-Все команды ниже выполняются из корня репозитория:
+## Logs and shutdown
+
+Run these commands from the repository root, or from `/opt/tc002-apps` for an image-only deployment:
 
 ```sh
 docker compose --env-file deploy/.env -f deploy/compose.yaml logs -f --tail=100 worker
@@ -97,33 +102,37 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml ps
 docker compose --env-file deploy/.env -f deploy/compose.yaml down
 ```
 
-Логи ротируются: до трёх файлов по 10 МБ.
+Logs are rotated, with up to three files of 10 MB each.
 
-## Обновление
+## Updating a source-based deployment
 
 ```sh
-git rev-parse HEAD  # сохраните SHA текущей версии для отката
+git rev-parse HEAD  # Save the current SHA for rollback.
 git pull --ff-only
 sh deploy/deploy.sh
 ```
 
-Исходники собираются непосредственно на VPS; registry и GitHub-токены для образов не нужны. Новые изменения должны быть опубликованы в репозитории до обновления VPS.
+This workflow builds source code directly on the VPS; no image registry or GitHub token for images is required. Push new changes to the repository before updating the VPS. For image-only deployments, export and load the new images, then rerun the deployment script with `--no-build`.
 
-## Откат
+## Rolling back a source-based deployment
 
-В чистом checkout на VPS переключитесь на сохранённый SHA и повторите развёртывание:
+With a clean working tree on the VPS, check out the saved SHA and redeploy:
 
 ```sh
 git checkout <previous-sha>
 sh deploy/deploy.sh
 ```
 
-Для следующих обновлений вернитесь на рабочую ветку и выполните обычный процесс обновления.
+For subsequent updates, return to your working branch and follow the normal update workflow.
 
-## Одноразовый запуск воркера
+## Running the worker once
 
 ```sh
 docker compose --env-file deploy/.env -f deploy/compose.yaml run --rm --build worker --once
 ```
 
-Go на VPS устанавливать не требуется: сборка выполняется в Docker. Каждая новая команда может использовать тот же Dockerfile с другим build arg `APP`.
+For an image-only deployment, omit `--build`. Go does not need to be installed on the VPS: builds run in Docker. Each new command can use the same Dockerfile with a different `APP` build argument.
+
+## Configuration reference
+
+See the [Go command reference](commands.md) for `AWTRIX_URL`, `WORKER_INTERVAL`, and command-line options. Compose reads values from `deploy/.env`; native Go commands do not load that file automatically.

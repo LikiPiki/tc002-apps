@@ -1,7 +1,9 @@
-# Приложения на часах
+# On-device apps
 
-Каждое приложение хранится в отдельной папке: `apps/<name>/main.be` и `README.md` с настройками и описанием входных данных.
+Each app lives in its own directory: `apps/<name>/main.be`, alongside a `README.md` describing its settings and input data.
 
-Приложения исполняются встроенным Berry-интерпретатором AWTRIX NG. Пока здесь нет приложений: добавим первое под конкретный сценарий и версию прошивки.
+Apps run in the Berry interpreter embedded in AWTRIX NG. This directory is currently a placeholder; the first app will target a specific use case and firmware version.
 
-Установка на старте — через вкладку Scripts веб-интерфейса часов. Автоматическая загрузка из `clockctl` запланирована, но ещё не реализована.
+Install apps through the Scripts tab in the clock's web UI. Automated upload through `clockctl` is planned but not implemented yet.
+
+To test without hardware, run `make dev` from the repository root and open http://localhost:8080. Upload the script in the Scripts tab and inspect the live display. See the [development guide](../docs/development.md) and [contribution guide](../CONTRIBUTING.md) for details.

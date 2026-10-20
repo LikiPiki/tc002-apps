@@ -1,14 +1,14 @@
-# Архитектура
+# Architecture
 
-Два независимых типа приложений:
+The project supports two independent types of apps:
 
-1. **Berry на TC002:** локальная логика, отрисовка и взаимодействие с устройством.
-2. **Go на VPS:** получение данных из API, обработка, отправка на часы по HTTP или MQTT.
+1. **Berry on the TC002:** local logic, rendering, and interaction with the device.
+2. **Go on a VPS:** fetching data from APIs, processing it, and publishing it to the clock over HTTP or MQTT.
 
-Простой экран или уведомление может целиком формироваться в Go. Для собственной анимации или интерактивности Berry-приложение получает данные и рисует их само.
+A simple screen or notification can be generated entirely in Go. For custom animation or interaction, a Berry app receives data and handles rendering on the clock.
 
-Сейчас реализован минимальный HTTP-клиент уведомлений AWTRIX NG. MQTT, авторизация, конкретные источники данных и загрузка Berry-скриптов будут добавляться по мере появления приложений.
+The current implementation provides a minimal AWTRIX NG HTTP notification client. MQTT, authentication, specific data sources, and Berry script upload will be added as needed by individual apps.
 
-Каждая Go-команда находится в `cmd/<name>`, переиспользуемая логика — в `internal/`. Один Dockerfile собирает выбранную команду через `APP`. Для независимых сервисов добавляем отдельные записи в Compose.
+Each Go command lives in `cmd/<name>`, with reusable logic in `internal/`. A shared Dockerfile builds the command selected by the `APP` build argument. Independent services get separate entries in Compose.
 
-`worker` — заглушка, показывающая периодический запуск и корректную остановку по SIGTERM. Никаких данных она пока не получает и на часы не отправляет.
+`worker` is a placeholder demonstrating periodic execution and graceful shutdown on SIGTERM. It does not fetch data or publish anything to the clock yet.
