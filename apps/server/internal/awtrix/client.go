@@ -19,15 +19,6 @@ type Client struct {
 	http    *http.Client
 }
 
-type HTTPError struct {
-	StatusCode int
-	Status     string
-}
-
-func (e *HTTPError) Error() string {
-	return "AWTRIX returned " + e.Status
-}
-
 var appName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
 
 func ValidateAppName(name string) error {
@@ -44,31 +35,41 @@ func ValidateAppName(name string) error {
 func (c *Client) request(ctx context.Context, method, path, contentType string, body []byte, result any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return fmt.Errorf("%s %s: create request: %w", method, path, err)
 	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s %s: %w", method, path, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &HTTPError{StatusCode: resp.StatusCode, Status: resp.Status}
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return responseError(method, path, resp.StatusCode, resp.Status, detail)
 	}
 	if raw, ok := result.(*[]byte); ok {
 		*raw, err = io.ReadAll(io.LimitReader(resp.Body, (1<<20)+1))
 		if err == nil && len(*raw) > 1<<20 {
-			return fmt.Errorf("AWTRIX source exceeds 1 MiB")
+			return fmt.Errorf("%s %s: AWTRIX source exceeds 1 MiB", method, path)
 		}
-		return err
+		if err != nil {
+			return fmt.Errorf("%s %s: read source: %w", method, path, err)
+		}
+		return nil
 	}
 	if result != nil {
-		return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(result)
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(result); err != nil {
+			return fmt.Errorf("%s %s: decode response: %w", method, path, err)
+		}
+		return nil
 	}
 	_, err = io.Copy(io.Discard, resp.Body)
-	return err
+	if err != nil {
+		return fmt.Errorf("%s %s: read response: %w", method, path, err)
+	}
+	return nil
 }
 
 func (c *Client) InstallScript(ctx context.Context, name string, source []byte) error {
@@ -197,20 +198,5 @@ func (c *Client) Notify(ctx context.Context, text string) error {
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/v1/notifications", bytes.NewReader(payload))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("send notification: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("AWTRIX returned %s", resp.Status)
-	}
-	_, err = io.Copy(io.Discard, resp.Body)
-	return err
+	return c.request(ctx, http.MethodPost, "/api/v1/notifications", "application/json", payload, nil)
 }

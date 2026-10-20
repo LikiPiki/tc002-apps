@@ -22,6 +22,8 @@ go run ./apps/server/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
 
 The client posts to `/api/v1/notifications` with a 10-second timeout. Invalid URLs, failed requests, and non-2xx responses produce a nonzero exit status. Authentication is not implemented yet.
 
+HTTP failures include the method, API path (including the app name for script operations), status, and AWTRIX's error code/message/field when present. Plain-text or malformed responses use a bounded body excerpt. Transport and JSON-decoding failures also include the operation. For example: `PUT /api/v1/apps/script-update/demo: AWTRIX returned 422 ... (validationFailed): ...`. The same error handling is used for notifications and script operations.
+
 For production Docker, set `clock.url` in your personal TOML and run:
 
 ```sh
