@@ -25,4 +25,4 @@ On macOS use `shasum -a 256 <archive>` and compare its digest with `SHA256SUMS`.
 
 After CI passes for the chosen commit, pushing a `v*` tag triggers `.github/workflows/release.yml`. It reruns Go checks, builds all six archives, and publishes a GitHub Release with generated notes and checksums using the workflow token. Normal pushes to `main` run CI without creating releases.
 
-CI checks the module's minimum Go 1.24 and the current stable Go release. Its Berry job checks every catalog app with `CHECK_ALL=true`, independent of the normal deploy selection, plus display-policy behavior and the status producer/consumer integration. GIF previews are uploaded for visual inspection.
+CI checks the module's minimum Go 1.24 and the current stable Go release. Its Berry job checks every catalog app with `CHECK_ALL=true`, independent of the normal deploy selection, plus display-policy behavior and the weather producer/consumer integration. GIF previews are uploaded for visual inspection.

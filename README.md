@@ -4,12 +4,11 @@ Apps for Ulanzi TC002 running AWTRIX NG, with Go services for processing data an
 
 ## Current status
 
-This repository is a small toolkit with autonomous clock apps, weather and HTTP health integrations:
+This repository is a small toolkit with autonomous clock apps and a weather integration:
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - A list of clock profile files can assign different screen sets/settings to any number of devices; unreachable/non-AWTRIX targets are skipped with warnings. One VPS serves the configured profiles with common data sources. See [clock profiles](docs/configuration.md#different-clock-configurations-from-the-main-config).
 - `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
-- `status-provider` checks an HTTP health endpoint and publishes to the `service-status` screen with explicit data expiry. See [setup and contract](docs/integrations/service-status.md).
 - `weather-provider` fetches Open-Meteo current conditions and three-day forecasts for two separate screens. It can also print weather directly on the VPS. See [weather setup](docs/integrations/weather.md).
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
@@ -22,7 +21,7 @@ Physical clocks must run **AWTRIX NG**. The stock Ulanzi firmware and AWTRIX 3 a
 | --- | --- | --- |
 | ![Animated cigar](docs/previews/cigar.gif) | ![Animated mackerel](docs/previews/mackerel.gif) | ![Animated seagull](docs/previews/seagull.gif) |
 
-Captured from the real headless AWTRIX engine. See [preview generation](docs/previews/README.md). The [service-status screen](docs/integrations/service-status.md) adds live HTTP health data with expiry.
+Captured from the real headless AWTRIX engine. See [preview generation](docs/previews/README.md). The [weather integration](docs/integrations/weather.md) adds live weather data with expiry.
 
 ## Project structure
 

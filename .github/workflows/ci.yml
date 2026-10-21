@@ -59,18 +59,6 @@ jobs:
       - name: Check every Berry app independently of deploy selection
         run: make clock-check CHECK_BUILD=0 CHECK_ALL=true LOCAL_CONFIG=
 
-      - name: Build cached status integration runner
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./apps/server/Dockerfile
-          target: integration
-          load: true
-          tags: tc002-apps/server/status-check:local
-          cache-from: type=gha,scope=status-check-runner
-          cache-to: type=gha,mode=max,scope=status-check-runner
-      - name: Check status producer and screen
-        run: make status-check CHECK_BUILD=0
       - name: Build cached weather integration runner
         uses: docker/build-push-action@v6
         with:

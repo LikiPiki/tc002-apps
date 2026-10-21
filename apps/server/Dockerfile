@@ -17,13 +17,6 @@ COPY configs/config.toml ./configs/config.toml
 USER app
 ENTRYPOINT ["/usr/local/bin/app"]
 
-FROM build AS integration-build
-RUN CGO_ENABLED=0 go test -c -o /out/status-check ./apps/server/internal/statusprovider
-
-FROM runtime AS integration
-COPY --from=integration-build /out/status-check /usr/local/bin/status-check
-ENTRYPOINT ["/usr/local/bin/status-check", "-test.v", "-test.run=TestClockIntegration"]
-
 FROM build AS weather-integration-build
 RUN CGO_ENABLED=0 go test -c -o /out/weather-check ./apps/server/internal/weatherprovider
 

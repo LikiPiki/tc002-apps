@@ -35,7 +35,6 @@ type Config struct {
 	Server struct {
 		Apps    []string
 		Worker  struct{ Interval string }
-		Status  StatusConfig
 		Weather WeatherConfig
 	}
 	Tools struct{ Apps []string }
@@ -63,14 +62,6 @@ func Load(base, personal string) (Config, error) {
 	c.Clock.Deploy.OnDemand = []string{}
 	c.Clock.Screens, c.Clock.Services, c.Clock.OnDemand = AppSettings{}, AppSettings{}, AppSettings{}
 	c.Server.Worker.Interval = "1m"
-	c.Server.Status = StatusConfig{
-		App:      "service-status",
-		Label:    "SITE",
-		Interval: "30s",
-		Timeout:  "5s",
-		TTL:      "90s",
-		Attempts: 3,
-	}
 
 	c.Server.Weather = WeatherConfig{
 		Label:    "HOME",
@@ -102,7 +93,6 @@ func Load(base, personal string) (Config, error) {
 				Worker struct {
 					Interval *string `toml:"interval"`
 				} `toml:"worker"`
-				Status  statusOverrides  `toml:"status"`
 				Weather weatherOverrides `toml:"weather"`
 			} `toml:"server"`
 			Tools struct {
@@ -127,7 +117,6 @@ func Load(base, personal string) (Config, error) {
 			c.Server.Worker.Interval = *fields.Server.Worker.Interval
 		}
 
-		fields.Server.Status.apply(&c.Server.Status)
 		fields.Server.Weather.apply(&c.Server.Weather)
 
 		if fields.Tools.Apps != nil {

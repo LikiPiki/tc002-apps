@@ -13,15 +13,6 @@ services:
     restart: "no"
     environment: *project-environment
 
-  status-provider:
-    profiles: [status]
-    extends:
-      file: ../deploy/compose.yaml
-      service: status-provider
-    image: tc002-apps/server/status-provider:lan
-    restart: "no"
-    environment: *project-environment
-
   worker:
     profiles: [worker]
     extends:

@@ -1,7 +1,5 @@
 # Project configuration
 
-The HTTP health integration uses `[server.status]`: `url`, `app`, `label`, `interval`, `timeout`, `ttl` and `attempts`. See [service-status](integrations/service-status.md) for defaults, validation and setup. Personal overrides merge individual fields.
-
 The [weather integration](integrations/weather.md) uses `[server.weather]`: required `latitude`/`longitude`, plus `label`, `timezone`, `screens`, `interval`, `timeout`, `ttl` and `attempts`. Coordinates have no implicit default; zero is valid. Fields merge individually, while `screens` replaces the selected consumers. `weather-provider --print` fetches one reading for terminal inspection without a clock connection.
 
 All project settings use one TOML schema and one Go loader:
@@ -25,7 +23,7 @@ Bare IPs/hostnames use HTTP. Full HTTP(S) URLs support ports. The list replaces 
 
 Deployment, notifications, show/start/stop, doctor/status and the VPS providers operate on all listed clocks. They verify the AWTRIX device/capabilities API before writing. Unknown endpoints and unreachable addresses are skipped with a warning identifying the target. Device operations run independently, with at most four concurrent targets; one failure does not prevent the others from updating. All targets failing (or an empty list) produces a nonzero exit status, while partial delivery succeeds with warnings.
 
-The weather provider fetches one reading per cycle and publishes it to the configured screens on every reachable clock. HTTP status is also probed once per cycle. Skipped clocks are checked again next cycle. Server delivery has a 10-second budget per clock and identification is limited to three seconds.
+The weather provider fetches one reading per cycle and publishes it to the configured screens on every reachable clock. Skipped clocks are checked again next cycle. Server delivery has a 10-second budget per clock and identification is limited to three seconds.
 
 Explicit `--url` or `AWTRIX_URL` selects **one clock**, replacing the entire configured set. A matching configured clock retains its profile's screen settings; an unlisted address uses shared clock settings. This also keeps the virtual-clock environment confined to its sandbox target. Config parsing stays offline; `list`/`validate` show selections without probing the devices.
 
@@ -72,7 +70,7 @@ Copy the provided `configs/clocks/*.toml.example` templates to `*.local.toml`. L
 
 Clock settings inherit shared + personal defaults, then the individual profile overrides them. This includes deployment selections and Berry settings such as `[clock.services.display-policy]`. The profile name in reports comes from its filename (`main.local.toml` → `main`). All selected source files are validated before any clock writes. Unknown fields, missing files, duplicate names, nested profiles and an address assigned to different profiles fail before deployment.
 
-VPS configuration stays in the main config. Profiles cannot override `[server]` or `[tools]`. Weather is fetched once per cycle and remains common to all clocks; each profile receives data only for its selected weather screens. A current-only profile does not get writes to `weather-forecast`. HTTP-status delivery similarly follows whether `service-status` is selected. A profile with no consumers for a provider is left out of that provider's audience.
+VPS configuration stays in the main config. Profiles cannot override `[server]` or `[tools]`. Weather is fetched once per cycle and remains common to all clocks; each profile receives data only for its selected weather screens. A current-only profile does not get writes to `weather-forecast`. A profile with no consumers for a provider is left out of that provider's audience.
 
 Use `make clock-list` to preview the profile → address → screen mapping, then `make clock-deploy` to apply all profiles. `APP=...` explicitly overrides the per-profile app selection. To operate on one existing device while retaining its profile settings, pass its address with `--url`/`AWTRIX_URL`. Profiles choose what to upload; existing apps omitted from a new selection are not automatically deleted or disabled.
 
