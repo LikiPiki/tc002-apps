@@ -7,15 +7,41 @@ KIND ?= all
 GROUP ?= all
 CHECK_DURATION ?= 2s
 CHECK_BUILD ?= 1
-export TEXT CONFIG LOCAL_CONFIG APP KIND GROUP CHECK_DURATION CHECK_BUILD
+CHECK_ALL ?= false
+VERSION ?= $(shell git describe --tags --always --dirty)
+COMMIT ?= $(shell git rev-parse HEAD)
+LDFLAGS = -s -w \
+	-X github.com/LikiPiki/tc002-apps/internal/buildinfo.Version=$(VERSION) \
+	-X github.com/LikiPiki/tc002-apps/internal/buildinfo.Commit=$(COMMIT)
+export TEXT CONFIG LOCAL_CONFIG APP KIND GROUP CHECK_DURATION CHECK_BUILD CHECK_ALL VERSION COMMIT
 
 .PHONY: help check build docker-build docker-save list-apps dev dev-build dev-down dev-logs dev-notify dev-check clock-list clock-deploy clock-show clock-start clock-stop clock-check
 
 help:
-	@printf '%s\n' 'make list-apps      Show selected Go artifacts (GROUP=all|server|tools)' 'make check         Go format, vet and tests' 'make build         Build selected Go binaries into bin/<group>/' 'make docker-build  Build isolated server/tool images' 'make docker-save   Export selected images to dist/<group>/<app>.tar.gz' 'make dev           Build/start virtual AWTRIX at http://localhost:8080' 'make dev-notify    Send a notification (TEXT="...")' 'make dev-check     Build/start AWTRIX and send a smoke notification' 'make dev-logs      Follow AWTRIX logs' 'make dev-down      Stop dev environment, preserving data'
-	@printf '%s\n' 'make clock-list    Show target and selected Berry apps' 'make clock-deploy  Upload Berry apps (APP=<name> selects one)' 'make clock-show APP=<name>  Show an installed Berry app'
-	@printf '%s\n' 'make clock-check   Check Berry apps in disposable local AWTRIX (APP=<name>, CHECK_DURATION=2s)'
-	@printf '%s\n' 'make clock-start APP=<name>  Start an installed on-demand app' 'make clock-stop APP=<name>   Stop the current on-demand app' 'Use KIND=screens|services|on-demand to filter clock-list, clock-deploy, or clock-check'
+	@printf '%s\n' \
+		'make list-apps      Show selected Go artifacts (GROUP=all|server|tools)' \
+		'make check          Go format, vet and tests' \
+		'make build          Build selected Go binaries into bin/<group>/' \
+		'make docker-build   Build isolated server/tool images' \
+		'make docker-save    Export selected images to dist/<group>/<app>.tar.gz' \
+		'make release        Build cross-platform clockctl archives and checksums' \
+		'make dev            Build/start virtual AWTRIX at http://localhost:8080' \
+		'make dev-notify     Send a notification (TEXT="...")' \
+		'make dev-check      Build/start AWTRIX and send a smoke notification' \
+		'make dev-logs       Follow AWTRIX logs' \
+		'make dev-down       Stop dev environment, preserving data' \
+		'make clock-list     Show target and selected Berry apps' \
+		'make clock-validate Validate clock settings offline' \
+		'make clock-deploy   Upload Berry apps (APP=<name> selects one)' \
+		'make clock-check    Check Berry apps in disposable AWTRIX (CHECK_ALL=true for all apps)' \
+		'make status-check   Check HTTP status integration in disposable AWTRIX' \
+		'make sprites        Generate Berry arrays from sprite PNGs' \
+		'make sprites-check  Verify generated sprite arrays' \
+		'make previews       Refresh README GIFs from runtime artifacts' \
+		'make clock-show APP=<name>   Show an installed Berry app' \
+		'make clock-start APP=<name>  Start an installed on-demand app' \
+		'make clock-stop APP=<name>   Stop the current on-demand app' \
+		'Use KIND=screens|services|on-demand to filter catalog commands and clock-check'
 
 clock-check:
 	sh scripts/check-clock.sh
@@ -49,12 +75,18 @@ check:
 build:
 	@set -eu; targets=$$(sh scripts/select-apps.sh "$$CONFIG" "$$LOCAL_CONFIG"); \
 	for target in $$targets; do group=$${target%%/*}; app=$${target#*/}; \
-		go build -o "bin/$$target" "./apps/$$group/cmd/$$app"; done
+		go build -trimpath -ldflags "$(LDFLAGS)" -o "bin/$$target" "./apps/$$group/cmd/$$app"; done
 
 docker-build:
 	@set -eu; targets=$$(sh scripts/select-apps.sh "$$CONFIG" "$$LOCAL_CONFIG"); \
 	for target in $$targets; do group=$${target%%/*}; app=$${target#*/}; \
-		docker build -f "apps/$$group/Dockerfile" --build-arg "APP=$$app" -t "tc002-apps/$$target:local" .; done
+		docker build -f "apps/$$group/Dockerfile" --build-arg "APP=$$app" \
+			--build-arg "VERSION=$$VERSION" --build-arg "COMMIT=$$COMMIT" \
+			-t "tc002-apps/$$target:local" .; done
+
+.PHONY: release
+release:
+	sh scripts/release.sh
 
 docker-save: docker-build
 	@set -eu; targets=$$(sh scripts/select-apps.sh "$$CONFIG" "$$LOCAL_CONFIG"); \

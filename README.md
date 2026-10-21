@@ -135,6 +135,8 @@ cd tc002-apps
 
 ### Native Go
 
+For standalone notifications and diagnostics, download the `clockctl` archive for your OS/architecture from [GitHub Releases](https://github.com/LikiPiki/tc002-apps/releases), verify it against `SHA256SUMS`, extract it, and run `clockctl --version`. Releases cover Linux, macOS and Windows on amd64/arm64. Berry source deployment still needs a checkout or an explicit app catalog. See [release builds](docs/releases.md).
+
 ```sh
 make check
 make build

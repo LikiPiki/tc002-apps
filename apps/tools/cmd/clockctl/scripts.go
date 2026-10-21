@@ -29,6 +29,7 @@ func runScripts(command string, args []string) error {
 	observe := flags.Duration("observe", 1500*time.Millisecond, "deploy: verification window per enabled app")
 	appsDir := flags.String("apps-dir", "apps/clock", "clock app catalog directory")
 	jsonOutput := flags.Bool("json", false, "JSON for list, validate, or deploy")
+	all := flags.Bool("all", false, "check: include every catalog app regardless of deploy selection")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -37,6 +38,9 @@ func runScripts(command string, args []string) error {
 	}
 	if *timeout <= 0 || *observe < 0 {
 		return fmt.Errorf("timeout must be positive and observe nonnegative")
+	}
+	if *all && command != "check" {
+		return fmt.Errorf("--all is only supported by check")
 	}
 	if *jsonOutput && command != "list" && command != "validate" && command != "deploy" {
 		return fmt.Errorf("--json is supported by list, validate, deploy, doctor and status")
@@ -111,6 +115,9 @@ func runScripts(command string, args []string) error {
 		}
 		fmt.Printf("Showing %s\n", *app)
 		return nil
+	}
+	if *all {
+		config.Clock.Deploy = projectconfig.ClockDeploy{}
 	}
 	scripts, err := clockapps.Select(*appsDir, config.Clock, *app, *kind)
 	if err != nil {

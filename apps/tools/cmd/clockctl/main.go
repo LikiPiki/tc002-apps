@@ -8,10 +8,15 @@ import (
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/internal/buildinfo"
 	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "version") {
+		fmt.Println(buildinfo.String())
+		return
+	}
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" || os.Args[1] == "status" {
 			if err := runInspection(os.Args[1], os.Args[2:]); err != nil && err != flag.ErrHelp {

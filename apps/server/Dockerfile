@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM golang:1.25-alpine AS build
 ARG APP=worker
+ARG VERSION=dev
+ARG COMMIT=unknown
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY apps/server/ ./apps/server/

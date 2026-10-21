@@ -38,6 +38,7 @@ compose run --rm --no-deps clock-check check \
     --config "${CONFIG:-configs/config.toml}" \
     --local-config "${LOCAL_CONFIG-configs/config.local.toml}" \
     --app "${APP:-}" --kind "${KIND:-all}" --duration "${CHECK_DURATION:-2s}" \
+    --all="${CHECK_ALL:-false}" \
     >"$CHECK_ARTIFACT_DIR/runner.log" 2>&1 || status=$?
 cat "$CHECK_ARTIFACT_DIR/runner.log"
 printf 'Artifacts: %s\n' "$CHECK_ARTIFACT_DIR"

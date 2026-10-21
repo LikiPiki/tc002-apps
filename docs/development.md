@@ -8,6 +8,8 @@ Animation `check.json` files also contain raw-frame SHA-256 goldens at fixed `no
 
 Use `make sprites` after editing app-owned `sprite.png` files, `make sprites-check` to verify generated Berry, and `make previews` after runtime checks to regenerate the README gallery.
 
+Use `make clock-check CHECK_ALL=true LOCAL_CONFIG=` to exercise all catalog apps regardless of deployment selections, matching CI.
+
 ## Commands
 
 Run these commands from the repository root:
