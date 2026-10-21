@@ -1,6 +1,6 @@
 # Project configuration
 
-The [weather integration](integrations/weather.md) uses `[server.weather]`: required `latitude`/`longitude`, plus `label`, `timezone`, `screens`, `interval`, `timeout`, `ttl` and `attempts`. Coordinates have no implicit default; zero is valid. Fields merge individually, while `screens` replaces the selected consumers. `weather-provider --print` fetches one reading for terminal inspection without a clock connection.
+The [weather integration](integrations/weather.md) uses `[server.weather]`: required `latitude`/`longitude`, plus `label`, `timezone`, `screens`, `interval`, `timeout`, `ttl` and `attempts`. Coordinates have no implicit default; zero is valid. Fields merge individually, while `screens` replaces the selected consumers. `tc002-server --print` fetches one reading for terminal inspection without a clock connection.
 
 All project settings use one TOML schema and one Go loader:
 
@@ -94,11 +94,9 @@ schedule_enabled = false
 on = "10:00"
 off = "20:00"
 
-[server]
-apps = ["*"]
-
-[server.worker]
-interval = "1m"
+[server.weather]
+interval = "15m"
+ttl = "2h"
 
 [tools]
 apps = ["*"]
@@ -119,9 +117,9 @@ off = "20:00"
 
 The Berry catalog validates declared setting names/basic types for selected apps, then the CLI patches settings through AWTRIX's API after uploading source. Unused app settings are not semantically validated by unrelated Go build/runtime consumers. AWTRIX and the app validate constraints and semantics. Invalid settings can leave the installed app reporting an error; source and settings are separate updates, with per-app phase results reported by deployment. Settings edited through the web UI are overwritten by configured TOML values on the next deployment. See [Display Policy](../apps/clock/services/display-policy/README.md).
 
-`server.apps` selects VPS commands under `apps/server/cmd/`. `tools.apps` selects utilities under `apps/tools/cmd/`. Omission or `["*"]` selects all in that group. An empty server list remains an error; an empty tools list skips utility artifacts. This does not select running Compose services. `server.worker.interval` sets a positive Go duration, such as `30s` or `5m`.
+The server has one fixed entry point and is always built with all features. Runtime settings such as `server.weather.interval` do not select binaries or images. `tools.apps` selects utilities under `apps/tools/cmd/`; omission or `["*"]` selects all utilities, and `[]` skips utility artifacts.
 
-Go Make commands accept `GROUP=all|server|tools` (default `all`), separate from the Berry `KIND` filter. `make list-apps` prints qualified targets such as `server/worker` and `tools/clockctl`. Binaries and image archives retain that group under `bin/` and `dist/`; image tags use `tc002-apps/<group>/<name>:local`.
+Default `make build`, `make docker-build` and `make docker-save` produce the complete server, as do their explicit `-server` aliases. Utilities use separate `-tools` targets; `make list-tools` prints selected utility names. Berry's `KIND` filter remains independent.
 
 ## Personal overrides
 
@@ -143,8 +141,8 @@ on_demand = []
 [clock.services.display-policy]
 schedule_enabled = true
 
-[server]
-apps = ["worker"]
+[server.weather]
+label = "SPB"
 ```
 
 Selections replace rather than append. App settings merge by field: changing `schedule_enabled` preserves the shared `on`/`off` values. The personal file is excluded from Git and Docker build context.
@@ -158,8 +156,8 @@ make clock-deploy APP=mackerel
 make clock-deploy KIND=on-demand
 make clock-deploy LOCAL_CONFIG=  # Shared local defaults only
 make build LOCAL_CONFIG="$HOME/.config/tc002/vps.toml"
-make docker-save GROUP=server
-make build GROUP=tools
+make docker-save-server
+make build-tools
 ```
 
 Make accepts `CONFIG` and `LOCAL_CONFIG`. Native Go commands accept `--config` and `--local-config`; environment variables `TC002_CONFIG` and `TC002_LOCAL_CONFIG` change their default paths. An explicitly empty personal path disables overrides. `APP` overrides the app selection; `KIND` filters or validates its category.
@@ -178,4 +176,4 @@ For runtime config changes, restart the Go service. For Berry config changes, de
 
 Move `clock.apps` into the relevant `clock.deploy` lists. Move `[clock.schedule]` into `[clock.services.display-policy]` and rename `enabled` to `schedule_enabled`. Old fields are rejected rather than silently ignored. Existing AWTRIX install names remain `cigar`, `seagull`, `mackerel`, and `display-policy`.
 
-If an older config includes `clockctl` in `server.apps`, move it to `tools.apps`. Server selection now contains only actual VPS commands. Old flat `bin/<name>` and `dist/<name>.tar.gz` outputs and flat Docker image tags are no longer produced; existing local artifacts are not removed automatically.
+Remove obsolete server build-selection and placeholder-worker sections from older personal configs. The complete server now builds directly from `apps/server/cmd/server`, with no app-list generation or per-feature exclusions. `tools.apps` remains a utility-only selection. Existing local artifacts are not removed automatically.

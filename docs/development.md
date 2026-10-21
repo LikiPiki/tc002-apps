@@ -18,10 +18,11 @@ Run these commands from the repository root:
 | --- | --- |
 | `make help` | List the main commands |
 | `make check` | Check Go formatting, run vet and tests |
-| `make list-apps [GROUP=server\|tools\|all]` | Show qualified Go artifact selection |
-| `make build [GROUP=...]` | Build selected binaries into `bin/<group>/` |
-| `make docker-build [GROUP=...]` | Build server/tool images from separate Dockerfiles |
-| `make docker-save [GROUP=...]` | Export selected images to `dist/<group>/<app>.tar.gz` |
+| `make list-tools` | Show selected utility commands |
+| `make build` | Build the complete server |
+| `make build-server` | Build `bin/server/tc002-server` with all server features |
+| `make docker-build-server` | Build the complete `tc002-apps/server:local` image |
+| `make docker-save-server` | Export `dist/server/tc002-server.tar.gz` |
 | `make clock-list` | Show the Berry deployment target and selected apps |
 | `make clock-deploy [APP=<name>]` | Upload selected Berry scripts to the configured target |
 | `make clock-show APP=<name>` | Show an installed script and check its runtime status |
@@ -30,14 +31,15 @@ Run these commands from the repository root:
 | `make clock-check [APP=<name>]` | Execute Berry apps in disposable local AWTRIX and check frames/errors |
 | `make dev` | Build and start virtual AWTRIX |
 | `make dev-build` | Build all development images without starting them |
+| `make dev-server` | Start the complete server against virtual AWTRIX |
 | `make dev-notify TEXT="Hello!"` | Send a notification from a Go container |
-| `make dev-check` | Start AWTRIX, run the worker, and perform an HTTP smoke check |
+| `make dev-check` | Start AWTRIX and perform an HTTP notification smoke check |
 | `make dev-logs` | Follow AWTRIX logs |
 | `make dev-down` | Stop the environment without deleting data |
-| `make lan [SERVICE=weather-provider]` | Build/start a local server that publishes to the physical clock |
-| `make lan-logs [SERVICE=...]` | Follow that server's logs |
-| `make lan-once [SERVICE=...]` | Fetch and publish once from a disposable container |
-| `make lan-restart [SERVICE=...]` | Restart the local server after config changes |
+| `make lan` | Build/start the complete server for physical clocks |
+| `make lan-logs` | Follow server logs |
+| `make lan-once` | Run one complete update from a disposable container |
+| `make lan-restart` | Restart the server after config changes |
 | `make lan-doctor` | Diagnose the physical clock from the container network |
 | `make lan-down` | Stop the local LAN server project |
 
@@ -47,7 +49,7 @@ Make commands also require Make and a POSIX shell; use Linux, macOS, or WSL. `ma
 
 ## Local server with physical clocks
 
-Use this mode when your computer and TC002 share a reachable LAN and you want to debug the server against the real display. `dev/compose.lan.yaml` reuses the production server definitions with local image tags and `restart: "no"`. It runs the weather provider by default; worker can be selected explicitly with `SERVICE`.
+Use this mode when your computer and TC002 share a reachable LAN and you want to debug against the real display. `dev/compose.lan.yaml` runs the complete production server with a local image tag and `restart: "no"`. All server features are included in the one process/container.
 
 The containers read `configs/config.toml` and your `configs/config.local.toml`, including the real clock address and weather location. For example:
 
@@ -90,7 +92,7 @@ make clock-show APP=weather-current
 
 The `tc002-lan` project has its own containers/network and local image tags. `make lan-down` removes this project's containers and network.
 
-For IDE breakpoints or native Go debugging, run `go run ./apps/server/cmd/weather-provider` directly from the checkout. It uses the same personal config and physical-clock target. Stop the containerized copy with `make lan-down` first so only one provider publishes the weather.
+For IDE breakpoints or native Go debugging, run `go run ./apps/server/cmd/server` directly from the checkout. It uses the same personal config and physical-clock targets. Stop the containerized copy with `make lan-down` first so only one server publishes data.
 
 ### LAN troubleshooting
 
@@ -147,8 +149,9 @@ CI runs the same check in a dedicated `berry` job. Buildx caches the pinned AWTR
 ### Go integration smoke check
 
 - The actual headless AWTRIX engine starts and responds to HTTP requests.
-- The worker builds and completes one run; it is currently a placeholder.
 - The Go client sends a notification to the actual HTTP API. A request error or a non-2xx response fails the check.
+
+`make server-check` separately verifies server data processing and the real Berry consumers with a local fixture, without requiring external weather access or personal coordinates.
 
 This is an integration smoke check, not an automated image comparison. Inspect the rendered output in the browser. Add data-processing unit tests and Berry-specific scenarios as individual apps are implemented.
 
@@ -176,4 +179,4 @@ The upstream commit is pinned through `AWTRIX_REV` in `dev/Dockerfile.awtrix`. W
 - **The first build is slow:** it compiles the C++ engine and downloads dependencies. Check Docker's build output; cached rebuilds are much faster.
 - **AWTRIX fails its health check:** run `make dev-logs` to inspect startup errors. The service must become healthy before `make dev-check` sends a notification.
 - **A notification is not visible:** open the web UI before running `make dev-notify` again; notifications are temporary.
-- **Your new app is missing from the build:** run `make list-apps` and check `server.apps` or `tools.apps` plus the `GROUP` filter. Use `["*"]` to select all commands in that family. Binaries are under `bin/server/` or `bin/tools/`, not the old flat output directory.
+- **A utility is missing from the build:** run `make list-tools` and check `tools.apps`. The server is always built as one complete `bin/server/tc002-server` binary; add server features to its existing entry point.

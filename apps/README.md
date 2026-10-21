@@ -10,6 +10,6 @@ Apps are separated by where they run:
 
 Go binaries and Docker images are not uploaded to the clock. Berry scripts are not included in the server images. A feature may have both a server component that processes data and a clock component that renders it; keep each component in its runtime directory and document how they communicate.
 
-`server/` is reserved for VPS applications; a development computer may run them for tests. Utilities belong to `tools/`. Shared Go libraries live in the root `internal/`, not under either app family.
+`server/` contains one complete VPS process; a development computer may run it for tests. All server features use the same binary and image. Utilities belong to `tools/`. Shared Go libraries live in the root `internal/`, not under either app family.
 
-The project TOML selects server artifacts with `server.apps`, utility artifacts with `tools.apps`, and Berry scripts by category under `clock.deploy`. App behavior is separate from build/upload selection. Cross-runtime pairing by [integration ID and data contract](../docs/integrations.md) is an alpha design, not an implemented registry. See [configuration](../docs/configuration.md) and [architecture](../docs/architecture.md).
+The server is always built whole. TOML selects utility artifacts with `tools.apps` and Berry scripts under `clock.deploy`. Server runtime values live under `server.weather`; there is no server build-set generation. See [configuration](../docs/configuration.md) and [architecture](../docs/architecture.md).

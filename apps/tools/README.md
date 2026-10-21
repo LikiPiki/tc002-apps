@@ -18,10 +18,10 @@ Device API calls are provided by the root `internal/awtrix` package. Sampling lo
 From the repository root:
 
 ```sh
-make list-apps GROUP=tools
-make build GROUP=tools
-make docker-build GROUP=tools
-make docker-save GROUP=tools
+make list-tools
+make build-tools
+make docker-build-tools
+make docker-save-tools
 go run ./apps/tools/cmd/clockctl --help
 ```
 
