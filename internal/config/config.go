@@ -42,10 +42,12 @@ func Paths(flags *flag.FlagSet) (base, personal *string) {
 	if !ok {
 		basePath = "configs/config.toml"
 	}
+
 	localPath, ok := os.LookupEnv("TC002_LOCAL_CONFIG")
 	if !ok {
 		localPath = "configs/config.local.toml"
 	}
+
 	return flags.String("config", basePath, "shared project TOML config"),
 		flags.String("local-config", localPath, "optional personal TOML overrides; empty disables them")
 }
@@ -58,12 +60,19 @@ func Load(base, personal string) (Config, error) {
 	c.Clock.Screens, c.Clock.Services, c.Clock.OnDemand = AppSettings{}, AppSettings{}, AppSettings{}
 	c.Server.Worker.Interval = "1m"
 	c.Server.Status = StatusConfig{
-		App: "service-status", Label: "SITE", Interval: "30s", Timeout: "5s", TTL: "90s", Attempts: 3,
+		App:      "service-status",
+		Label:    "SITE",
+		Interval: "30s",
+		Timeout:  "5s",
+		TTL:      "90s",
+		Attempts: 3,
 	}
+
 	for index, path := range []string{base, personal} {
 		if path == "" {
 			continue
 		}
+
 		data, err := os.ReadFile(path)
 		if index == 1 && errors.Is(err, os.ErrNotExist) {
 			continue
@@ -71,6 +80,7 @@ func Load(base, personal string) (Config, error) {
 		if err != nil {
 			return c, err
 		}
+
 		var fields struct {
 			Clock struct {
 				URL    *string `toml:"url"`
@@ -94,14 +104,17 @@ func Load(base, personal string) (Config, error) {
 				Apps *[]string `toml:"apps"`
 			} `toml:"tools"`
 		}
+
 		decoder := toml.NewDecoder(bytes.NewReader(data))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&fields); err != nil {
 			return c, fmt.Errorf("%s: %w", path, err)
 		}
+
 		if fields.Clock.URL != nil {
 			c.Clock.URL = *fields.Clock.URL
 		}
+
 		for _, field := range []struct {
 			src *[]string
 			dst *[]string
@@ -115,6 +128,7 @@ func Load(base, personal string) (Config, error) {
 			}
 			*field.dst = selection(*field.src)
 		}
+
 		for _, field := range []struct {
 			src AppSettings
 			dst AppSettings
@@ -125,17 +139,21 @@ func Load(base, personal string) (Config, error) {
 		} {
 			mergeSettings(field.dst, field.src)
 		}
+
 		if fields.Server.Apps != nil {
 			c.Server.Apps = selection(*fields.Server.Apps)
 		}
 		if fields.Server.Worker.Interval != nil {
 			c.Server.Worker.Interval = *fields.Server.Worker.Interval
 		}
+
 		fields.Server.Status.apply(&c.Server.Status)
+
 		if fields.Tools.Apps != nil {
 			c.Tools.Apps = selection(*fields.Tools.Apps)
 		}
 	}
+
 	return c, nil
 }
 
@@ -145,6 +163,7 @@ func (c Config) WorkerInterval() (time.Duration, error) {
 	if err != nil || interval <= 0 {
 		return 0, fmt.Errorf("server.worker.interval %q must be a positive Go duration", c.Server.Worker.Interval)
 	}
+
 	return interval, nil
 }
 
@@ -153,6 +172,7 @@ func mergeSettings(dst, src AppSettings) {
 		if dst[name] == nil {
 			dst[name] = map[string]any{}
 		}
+
 		for key, value := range fields {
 			dst[name][key] = value
 		}
@@ -164,6 +184,7 @@ func selection(names []string) []string {
 	if len(names) == 1 && names[0] == "*" {
 		return nil
 	}
+
 	seen := make(map[string]bool)
 	selected := make([]string, 0, len(names))
 	for _, name := range names {
@@ -172,5 +193,6 @@ func selection(names []string) []string {
 			seen[name] = true
 		}
 	}
+
 	return selected
 }

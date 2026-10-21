@@ -27,13 +27,17 @@ func TestOnDemandCanBeInstalledDormantStartedAndStopped(t *testing.T) {
 		}
 	}))
 	defer server.Close()
+
 	client, _ := NewClient(server.URL)
+
 	if err := client.CheckScript(context.Background(), "timer"); err != nil {
 		t.Fatalf("dormant on-demand app must be valid: %v", err)
 	}
+
 	if err := client.ShowScript(context.Background(), "timer"); err != nil || !running {
 		t.Fatalf("start: running=%v error=%v", running, err)
 	}
+
 	if err := client.StopOnDemand(context.Background(), "timer"); err != nil || running {
 		t.Fatalf("stop: running=%v error=%v", running, err)
 	}

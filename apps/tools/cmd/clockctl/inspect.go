@@ -26,6 +26,7 @@ func runInspection(command string, args []string) error {
 	url := flags.String("url", "", "AWTRIX URL (or AWTRIX_URL/config)")
 	jsonOutput := flags.Bool("json", false, "print machine-readable JSON")
 	timeout := flags.Duration("timeout", 15*time.Second, "whole command timeout")
+
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -37,10 +38,12 @@ func runInspection(command string, args []string) error {
 	if err != nil {
 		return err
 	}
+
 	client, err := awtrix.NewClient(config.Clock.URL)
 	if err != nil {
 		return err
 	}
+
 	ctx, cancel := commandContext(*timeout)
 	defer cancel()
 
@@ -56,17 +59,21 @@ func runInspection(command string, args []string) error {
 			fmt.Printf("Display: %dx%d\nAtomic updates: %v\n",
 				result.Width, result.Height, result.Capabilities["scriptUpdates"])
 		}
+
 		for _, app := range result.Apps {
 			fmt.Printf("  %s (%s): enabled=%v headless=%v on-demand=%v error=%s\n",
 				app.Name, app.Origin, app.Enabled, app.Headless, app.OnDemand, app.Error)
 		}
+
 		for _, problem := range result.Problems {
 			fmt.Printf("Problem: %s\n", problem)
 		}
 	}
+
 	if len(result.Problems) > 0 {
 		return fmt.Errorf("%s found %d problem(s)", command, len(result.Problems))
 	}
+
 	return nil
 }
 
@@ -84,11 +91,13 @@ func inspectTarget(ctx context.Context, client *awtrix.Client, target string, do
 	if err != nil {
 		result.Problems = append(result.Problems, err.Error())
 	}
+
 	for _, app := range result.Apps {
 		if app.Origin == "script" && len(app.Error) > 0 && string(app.Error) != "null" {
 			result.Problems = append(result.Problems, fmt.Sprintf("%s: %s", app.Name, app.Error))
 		}
 	}
+
 	if !doctor {
 		return result
 	}
@@ -110,5 +119,6 @@ func inspectTarget(ctx context.Context, client *awtrix.Client, target string, do
 			result.Problems = append(result.Problems, "invalid display frame")
 		}
 	}
+
 	return result
 }

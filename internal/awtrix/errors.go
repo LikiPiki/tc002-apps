@@ -47,6 +47,7 @@ func responseError(method, path string, statusCode int, status string, body []by
 	} else {
 		err.Message = errorDetail(string(body))
 	}
+
 	return err
 }
 
@@ -55,5 +56,6 @@ func errorDetail(s string) string {
 	if len(s) > 512 {
 		s = s[:512] + "..."
 	}
+
 	return s
 }

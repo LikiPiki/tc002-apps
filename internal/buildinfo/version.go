@@ -20,5 +20,6 @@ func String() string {
 			}
 		}
 	}
+
 	return fmt.Sprintf("clockctl %s (%s)", Version, commit)
 }

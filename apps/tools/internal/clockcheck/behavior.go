@@ -36,6 +36,7 @@ func PolicyBehavior(ctx context.Context, c *awtrix.Client, path string, source [
 		"shared.", "check_state.",
 	)
 	production = replaceAPIs.Replace(production)
+
 	test := "# @headless true\n" + parts[0] + production + "\nclass PolicyCheck" + parts[1]
 	if err := c.InstallScript(ctx, "policy-behavior", []byte(test)); err != nil {
 		return err
@@ -61,6 +62,7 @@ func SaveGIF(path string, frames []awtrix.Frame) error {
 			}
 			rgba.SetRGBA(i%frame.Width, i/frame.Width, rgb)
 		}
+
 		img := image.NewPaletted(rgba.Bounds(), palette.Plan9)
 		draw.FloydSteinberg.Draw(img, img.Rect, rgba, image.Point{})
 		out.Image = append(out.Image, img)
@@ -71,6 +73,7 @@ func SaveGIF(path string, frames []awtrix.Frame) error {
 	if err != nil {
 		return err
 	}
+
 	if err := gif.EncodeAll(f, out); err != nil {
 		f.Close()
 		return err

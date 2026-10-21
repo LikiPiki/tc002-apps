@@ -26,6 +26,7 @@ func loadTargetConfig(flags *flag.FlagSet, base, personal, explicitURL string) (
 			configExplicit = true
 		}
 	})
+
 	_, configFromEnvironment := os.LookupEnv("TC002_CONFIG")
 	if explicitURL != "" && !configExplicit && !configFromEnvironment {
 		if _, err := os.Stat(base); errors.Is(err, os.ErrNotExist) {
@@ -40,12 +41,14 @@ func loadTargetConfig(flags *flag.FlagSet, base, personal, explicitURL string) (
 	if explicitURL != "" {
 		config.Clock.URL = explicitURL
 	}
+
 	return config, nil
 }
 
 func commandContext(timeout time.Duration) (context.Context, context.CancelFunc) {
 	signalContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	ctx, cancel := context.WithTimeout(signalContext, timeout)
+
 	return ctx, func() {
 		cancel()
 		stop()
@@ -55,5 +58,6 @@ func commandContext(timeout time.Duration) (context.Context, context.CancelFunc)
 func printJSON(value any) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
+
 	return encoder.Encode(value)
 }

@@ -29,6 +29,7 @@ func run() error {
 	if flag.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
 	}
+
 	project, err := config.Load(*base, *personal)
 	if err != nil {
 		return err
@@ -36,10 +37,12 @@ func run() error {
 	if target := os.Getenv("AWTRIX_URL"); target != "" {
 		project.Clock.URL = target
 	}
+
 	settings, err := statusprovider.Parse(project.Server.Status)
 	if err != nil {
 		return err
 	}
+
 	client, err := awtrix.NewClient(project.Clock.URL)
 	if err != nil {
 		return err
@@ -47,6 +50,7 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
 	for {
 		reading, err := statusprovider.Probe(ctx, settings)
 		if err != nil {
@@ -55,18 +59,22 @@ func run() error {
 		if ctx.Err() != nil {
 			return nil
 		}
+
 		err = statusprovider.Publish(ctx, client, settings, reading)
 		if err != nil {
 			if *once {
 				return err
 			}
+
 			slog.Error("status publication failed", "error", err)
 		} else {
 			slog.Info("status published", "state", reading.State, "http_status", reading.HTTPStatus, "latency_ms", reading.LatencyMS)
 		}
+
 		if *once {
 			return nil
 		}
+
 		select {
 		case <-ctx.Done():
 			return nil

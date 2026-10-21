@@ -17,6 +17,7 @@ func TestProbeRetriesTransientFailure(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
+
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	t.Cleanup(server.Close)
@@ -28,10 +29,12 @@ func TestProbeRetriesTransientFailure(t *testing.T) {
 		TTL:      time.Minute,
 		Attempts: 3,
 	}
+
 	reading, err := Probe(t.Context(), settings)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if reading.State != "up" || reading.HTTPStatus != 204 || requests.Load() != 3 {
 		t.Fatalf("unexpected probe result: %+v, requests=%d", reading, requests.Load())
 	}
@@ -53,6 +56,7 @@ func TestProbeDoesNotRetryClientErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if reading.State != "down" || requests.Load() != 1 {
 		t.Fatalf("unexpected result: %+v, requests=%d", reading, requests.Load())
 	}

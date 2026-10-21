@@ -10,9 +10,11 @@ import (
 
 func fixture(t *testing.T, path, content string) {
 	t.Helper()
+
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -21,6 +23,7 @@ func fixture(t *testing.T, path, content string) {
 func TestPersonalOverridesMergeAcrossSections(t *testing.T) {
 	dir := t.TempDir()
 	base, personal := filepath.Join(dir, "config.toml"), filepath.Join(dir, "local.toml")
+
 	fixture(t, base, `[clock]
 url = "http://localhost:8080"
 [clock.deploy]
@@ -31,17 +34,21 @@ apps = ["worker"]
 interval = "1m"
 `)
 	fixture(t, personal, "[clock]\nurl = \"http://192.168.1.50\"\n[server.worker]\ninterval = \"30s\"\n")
+
 	c, err := Load(base, personal)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if c.Clock.URL != "http://192.168.1.50" ||
 		c.Server.Worker.Interval != "30s" ||
 		!reflect.DeepEqual(c.Clock.Deploy.Screens, []string{"cigar"}) ||
 		!reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
 		t.Fatalf("unexpected merged config: %+v", c)
 	}
+
 	fixture(t, personal, "[clock.deploy]\nscreens = [\"*\"]\nservices = []\non_demand = []\n")
+
 	c, err = Load(base, personal)
 	if err != nil ||
 		c.Clock.Deploy.Screens != nil ||
@@ -50,9 +57,11 @@ interval = "1m"
 		len(c.Server.Apps) != 1 {
 		t.Fatalf("wildcard must reset only clock selection: %+v, %v", c, err)
 	}
+
 	if _, err := Load(base, filepath.Join(dir, "missing.toml")); err != nil {
 		t.Fatal(err)
 	}
+
 	if _, err := Load(filepath.Join(dir, "missing.toml"), ""); err == nil {
 		t.Fatal("missing base config accepted")
 	}
@@ -69,6 +78,7 @@ func TestRejectInvalidConfig(t *testing.T) {
 	} {
 		path := filepath.Join(t.TempDir(), "config.toml")
 		fixture(t, path, content)
+
 		if _, err := Load(path, ""); err == nil {
 			t.Errorf("accepted invalid config: %s", content)
 		}
@@ -78,13 +88,16 @@ func TestRejectInvalidConfig(t *testing.T) {
 func TestLoadDoesNotValidateUnrelatedConsumers(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	fixture(t, path, "[clock]\nurl = \"not-a-url\"\n[clock.services.unused]\nsetting = [1,2]\n[server.worker]\ninterval = \"invalid\"\n")
+
 	c, err := Load(path, "")
 	if err != nil {
 		t.Fatalf("semantic values must be left to consumers: %v", err)
 	}
+
 	if _, err := c.WorkerInterval(); err == nil {
 		t.Fatal("worker accepted invalid interval")
 	}
+
 	c.Server.Worker.Interval = "30s"
 	if interval, err := c.WorkerInterval(); err != nil || interval.String() != "30s" {
 		t.Fatalf("valid worker config depends on unrelated clock config: %v, %v", interval, err)
@@ -94,8 +107,10 @@ func TestLoadDoesNotValidateUnrelatedConsumers(t *testing.T) {
 func TestAppSettingsMergeByField(t *testing.T) {
 	dir := t.TempDir()
 	base, personal := filepath.Join(dir, "base.toml"), filepath.Join(dir, "personal.toml")
+
 	fixture(t, base, "[clock.services.display-policy]\nschedule_enabled = true\non = \"20:00\"\noff = \"02:00\"\n")
 	fixture(t, personal, "[clock.services.display-policy]\nschedule_enabled = false\n")
+
 	c, err := Load(base, personal)
 	settings := c.Clock.Services["display-policy"]
 	if err != nil || settings["schedule_enabled"] != false || settings["on"] != "20:00" || settings["off"] != "02:00" {
@@ -106,11 +121,13 @@ func TestAppSettingsMergeByField(t *testing.T) {
 func TestConfigPathEnvironmentAndExplicitOverride(t *testing.T) {
 	t.Setenv("TC002_CONFIG", "custom.toml")
 	t.Setenv("TC002_LOCAL_CONFIG", "")
+
 	flags := flag.NewFlagSet("test", flag.ContinueOnError)
 	base, personal := Paths(flags)
 	if err := flags.Parse([]string{"--config", "explicit.toml"}); err != nil {
 		t.Fatal(err)
 	}
+
 	if *base != "explicit.toml" || *personal != "" {
 		t.Fatalf("unexpected paths: %q, %q", *base, *personal)
 	}
@@ -119,13 +136,17 @@ func TestConfigPathEnvironmentAndExplicitOverride(t *testing.T) {
 func TestToolSelectionDoesNotChangeServerSelection(t *testing.T) {
 	dir := t.TempDir()
 	base, personal := filepath.Join(dir, "base.toml"), filepath.Join(dir, "personal.toml")
+
 	fixture(t, base, "[server]\napps = [\"worker\"]\n[tools]\napps = [\"clockctl\"]\n")
 	fixture(t, personal, "[tools]\napps = []\n")
+
 	c, err := Load(base, personal)
 	if err != nil || c.Tools.Apps == nil || len(c.Tools.Apps) != 0 || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
 		t.Fatalf("tool selection changed server selection: %+v, %v", c, err)
 	}
+
 	fixture(t, personal, "[tools]\napps = [\"*\"]\n")
+
 	c, err = Load(base, personal)
 	if err != nil || c.Tools.Apps != nil || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
 		t.Fatalf("wildcard tools selection failed: %+v, %v", c, err)
@@ -136,6 +157,7 @@ func TestStatusSettingsMergeByField(t *testing.T) {
 	dir := t.TempDir()
 	base := filepath.Join(dir, "base.toml")
 	personal := filepath.Join(dir, "personal.toml")
+
 	fixture(t, base, "[server.status]\nurl = \"https://example.com/health\"\ninterval = \"45s\"\n")
 	fixture(t, personal, "[server.status]\nlabel = \"HOME\"\nattempts = 2\n")
 
@@ -144,6 +166,7 @@ func TestStatusSettingsMergeByField(t *testing.T) {
 		t.Fatal(err)
 	}
 	status := config.Server.Status
+
 	if status.URL != "https://example.com/health" ||
 		status.Interval != "45s" ||
 		status.Label != "HOME" ||

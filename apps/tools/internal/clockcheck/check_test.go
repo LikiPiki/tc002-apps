@@ -97,6 +97,7 @@ func TestHeadlessObservationDoesNotAccessDisplay(t *testing.T) {
 		if r.URL.Path != "/api/v1/apps" || r.Method != "GET" {
 			t.Errorf("unexpected display access: %s %s", r.Method, r.URL.Path)
 		}
+
 		fmt.Fprint(w, `[{"name":"policy","origin":"script","enabled":true,"headless":true,"error":null}]`)
 	}))
 	defer server.Close()

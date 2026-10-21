@@ -160,11 +160,13 @@ func (clock *planTestClock) serveHTTP(w http.ResponseWriter, r *http.Request) {
 func (clock *planTestClock) writeCount() int {
 	clock.mu.Lock()
 	defer clock.mu.Unlock()
+
 	return clock.writes
 }
 
 func (clock *planTestClock) assertState(t *testing.T, source string, value float64) {
 	t.Helper()
+
 	clock.mu.Lock()
 	defer clock.mu.Unlock()
 

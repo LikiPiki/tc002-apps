@@ -32,11 +32,13 @@ func (overrides statusOverrides) apply(config *StatusConfig) {
 		{overrides.Timeout, &config.Timeout},
 		{overrides.TTL, &config.TTL},
 	}
+
 	for _, field := range fields {
 		if field.value != nil {
 			*field.target = *field.value
 		}
 	}
+
 	if overrides.Attempts != nil {
 		config.Attempts = *overrides.Attempts
 	}

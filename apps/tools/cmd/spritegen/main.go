@@ -23,6 +23,7 @@ func main() {
 	check := flag.Bool("check", false, "fail when generated Berry differs")
 	extract := flag.Bool("extract", false, "recover sprite.png from existing palette/rows")
 	flag.Parse()
+
 	if err := run(*appDir, *check, *extract); err != nil {
 		log.Fatal(err)
 	}
@@ -36,10 +37,12 @@ func run(appDir string, check, extract bool) error {
 		if extract {
 			return fmt.Errorf("--extract requires --app-dir")
 		}
+
 		images, err := filepath.Glob("apps/clock/screens/*/sprite.png")
 		if err != nil {
 			return err
 		}
+
 		for _, path := range images {
 			paths = append(paths, filepath.Join(filepath.Dir(path), "main.be"))
 		}
@@ -50,11 +53,13 @@ func run(appDir string, check, extract bool) error {
 		if err != nil {
 			return err
 		}
+
 		pngPath := filepath.Join(filepath.Dir(path), "sprite.png")
 		if extract {
 			if err := extractPNG(pngPath, source); err != nil {
 				return err
 			}
+
 			continue
 		}
 
@@ -62,29 +67,35 @@ func run(appDir string, check, extract bool) error {
 		if err != nil {
 			return err
 		}
+
 		img, err := png.Decode(bytes.NewReader(data))
 		if err != nil {
 			return err
 		}
+
 		generated, err := generate(img)
 		if err != nil {
 			return fmt.Errorf("%s: %w", pngPath, err)
 		}
+
 		start := bytes.Index(source, []byte(beginMarker))
 		end := bytes.Index(source, []byte(endMarker))
 		if start < 0 || end < start {
 			return fmt.Errorf("%s: missing sprite markers", path)
 		}
+
 		updated := string(source[:start]) + generated + string(source[end+len(endMarker):])
 		if check && updated != string(source) {
 			return fmt.Errorf("%s: regenerate with make sprites", path)
 		}
+
 		if !check {
 			if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
 				return err
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -93,6 +104,7 @@ func generate(img image.Image) (string, error) {
 	if bounds.Dx() < 1 || bounds.Dx() > 128 || bounds.Dy() < 1 || bounds.Dy() > 32 {
 		return "", fmt.Errorf("sprite dimensions must fit 128x32")
 	}
+
 	palette := []uint32{0}
 	indices := map[uint32]int{}
 	rows := make([][]int, bounds.Dy())
@@ -106,6 +118,7 @@ func generate(img image.Image) (string, error) {
 			if rgba.A != 255 {
 				return "", fmt.Errorf("partial transparency at %d,%d", x, y)
 			}
+
 			rgb := uint32(rgba.R)<<16 | uint32(rgba.G)<<8 | uint32(rgba.B)
 			index, exists := indices[rgb]
 			if !exists {
@@ -116,6 +129,7 @@ func generate(img image.Image) (string, error) {
 				indices[rgb] = index
 				palette = append(palette, rgb)
 			}
+
 			rows[y] = append(rows[y], index)
 		}
 	}
@@ -130,6 +144,7 @@ func generate(img image.Image) (string, error) {
 		}
 		fmt.Fprintf(&output, "0x%06X", rgb)
 	}
+
 	fmt.Fprintln(&output, "]\n    self.rows = [")
 	for y, row := range rows {
 		output.WriteString("      [")
@@ -145,8 +160,10 @@ func generate(img image.Image) (string, error) {
 		}
 		output.WriteByte('\n')
 	}
+
 	fmt.Fprintln(&output, "    ]")
 	output.WriteString(endMarker)
+
 	return output.String(), nil
 }
 
@@ -158,12 +175,14 @@ func extractPNG(path string, source []byte) error {
 	if len(paletteMatch) != 2 || len(rowsMatch) != 2 {
 		return fmt.Errorf("source has no palette/rows")
 	}
+
 	var palette []color.Color
 	for index, raw := range strings.Split(string(paletteMatch[1]), ",") {
 		value, err := strconv.ParseUint(strings.TrimSpace(raw), 0, 32)
 		if err != nil {
 			return err
 		}
+
 		alpha := uint8(255)
 		if index == 0 {
 			alpha = 0
@@ -175,11 +194,13 @@ func extractPNG(path string, source []byte) error {
 			A: alpha,
 		})
 	}
+
 	rowPattern := regexp.MustCompile(`\[([^\]]+)\]`)
 	rows := rowPattern.FindAllSubmatch(rowsMatch[1], -1)
 	if len(rows) == 0 {
 		return fmt.Errorf("no sprite rows")
 	}
+
 	width := len(strings.Split(string(rows[0][1]), ","))
 	img := image.NewPaletted(image.Rect(0, 0, width, len(rows)), palette)
 	for y, row := range rows {
@@ -187,21 +208,26 @@ func extractPNG(path string, source []byte) error {
 		if len(values) != width {
 			return fmt.Errorf("inconsistent sprite row widths")
 		}
+
 		for x, raw := range values {
 			index, err := strconv.Atoi(strings.TrimSpace(raw))
 			if err != nil || index < 0 || index >= len(palette) {
 				return fmt.Errorf("invalid palette index at %d,%d", x, y)
 			}
+
 			img.SetColorIndex(x, y, uint8(index))
 		}
 	}
+
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}
+
 	if err := png.Encode(file, img); err != nil {
 		file.Close()
 		return err
 	}
+
 	return file.Close()
 }

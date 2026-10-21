@@ -14,6 +14,7 @@ func CheckInvocation(target, marker string) error {
 	if marker != "1" || target != SandboxURL {
 		return fmt.Errorf("clockctl check is sandbox-only; use make clock-check (custom device URLs are not accepted)")
 	}
+
 	return nil
 }
 
@@ -26,5 +27,6 @@ func RequireSandbox(ctx context.Context, c *awtrix.Client) error {
 	if device.BoardType != "linux" {
 		return fmt.Errorf("refusing runtime checks on boardType %q: expected headless Linux AWTRIX", device.BoardType)
 	}
+
 	return nil
 }

@@ -33,6 +33,7 @@ func Run(ctx context.Context, api API, scripts []clockapps.Script) (Report, erro
 	for i, script := range scripts {
 		report.Results[i] = Result{script.Name, script.Kind, "not-attempted", "not-run", "not-run", ""}
 	}
+
 	for i, script := range scripts {
 		result := &report.Results[i]
 		result.Source = "unconfirmed"
@@ -41,6 +42,7 @@ func Run(ctx context.Context, api API, scripts []clockapps.Script) (Report, erro
 			return report, fmt.Errorf("%s/%s source update: %w", script.Kind, script.Name, err)
 		}
 		result.Source = "updated"
+
 		result.Settings = "not-configured"
 		if len(script.Settings) != 0 {
 			result.Settings = "unconfirmed"
@@ -52,10 +54,12 @@ func Run(ctx context.Context, api API, scripts []clockapps.Script) (Report, erro
 					result.Verification = "failed"
 					result.FailedPhase = "restart"
 				}
+
 				return report, fmt.Errorf("%s/%s settings (source already updated): %w", script.Kind, script.Name, err)
 			}
 			result.Settings = "applied"
 		}
+
 		result.Verification = "unconfirmed"
 		if err := api.CheckScript(ctx, script.Name); err != nil {
 			result.Verification = "failed"
@@ -64,6 +68,7 @@ func Run(ctx context.Context, api API, scripts []clockapps.Script) (Report, erro
 		}
 		result.Verification = "passed"
 	}
+
 	return report, nil
 }
 
@@ -77,6 +82,7 @@ func (r Report) String() string {
 		}
 		uncertain = uncertain || result.Source == "unconfirmed" || result.Settings == "unconfirmed"
 	}
+
 	fmt.Fprintf(&out, "Deployment: %d/%d apps verified\n", verified, len(r.Results))
 	for _, result := range r.Results {
 		fmt.Fprintf(&out, "  %s/%s: source=%s settings=%s verification=%s",
@@ -86,11 +92,13 @@ func (r Report) String() string {
 		}
 		out.WriteByte('\n')
 	}
+
 	if verified != len(r.Results) {
 		out.WriteString("Confirmed updates remain installed; no batch rollback was performed.\n")
 		if uncertain {
 			out.WriteString("Unconfirmed writes may have reached the device; inspect its state before retrying.\n")
 		}
 	}
+
 	return out.String()
 }

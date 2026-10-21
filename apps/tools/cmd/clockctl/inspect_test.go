@@ -27,6 +27,7 @@ func TestExplicitURLWorksWithoutImplicitConfig(t *testing.T) {
 	if err := flags.Parse([]string{"--config", missing}); err != nil {
 		t.Fatal(err)
 	}
+
 	if _, err := loadTargetConfig(flags, missing, "", "http://localhost:1234"); err == nil {
 		t.Fatal("explicit missing config was ignored")
 	}
@@ -53,6 +54,7 @@ func TestDoctorReportsDeviceAndRuntimeProblems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	result := inspectTarget(t.Context(), client, server.URL, true)
 	if result.Width != 2 || result.Height != 1 || len(result.Problems) != 2 {
 		t.Fatalf("unexpected diagnosis: %+v", result)

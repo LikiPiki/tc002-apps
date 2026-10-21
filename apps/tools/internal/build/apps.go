@@ -13,7 +13,9 @@ type Target struct {
 	Name  string
 }
 
-func (t Target) String() string { return t.Group + "/" + t.Name }
+func (t Target) String() string {
+	return t.Group + "/" + t.Name
+}
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
@@ -21,6 +23,7 @@ func Select(root string, server, tools []string, group string) ([]Target, error)
 	if group != "all" && group != "server" && group != "tools" {
 		return nil, fmt.Errorf("unknown Go group %q: use all, server, or tools", group)
 	}
+
 	var targets []Target
 	for _, entry := range []struct {
 		group string
@@ -29,6 +32,7 @@ func Select(root string, server, tools []string, group string) ([]Target, error)
 		if group != "all" && group != entry.group {
 			continue
 		}
+
 		names := entry.names
 		if entry.group == "server" && names != nil && len(names) == 0 {
 			return nil, fmt.Errorf("server.apps must be [\"*\"] or a nonempty list")
@@ -38,15 +42,18 @@ func Select(root string, server, tools []string, group string) ([]Target, error)
 			if err != nil {
 				return nil, err
 			}
+
 			for _, path := range paths {
 				names = append(names, filepath.Base(filepath.Dir(path)))
 			}
 		}
+
 		seen := map[string]bool{}
 		for _, name := range names {
 			if !namePattern.MatchString(name) {
 				return nil, fmt.Errorf("invalid Go app name %q", name)
 			}
+
 			path := filepath.Join(root, entry.group, "cmd", name, "main.go")
 			info, err := os.Stat(path)
 			if err != nil {
@@ -55,11 +62,13 @@ func Select(root string, server, tools []string, group string) ([]Target, error)
 			if !info.Mode().IsRegular() {
 				return nil, fmt.Errorf("%s is not a regular Go entry point", path)
 			}
+
 			if !seen[name] {
 				targets = append(targets, Target{entry.group, name})
 				seen[name] = true
 			}
 		}
 	}
+
 	return targets, nil
 }

@@ -61,6 +61,7 @@ func Parse(raw config.StatusConfig) (Settings, error) {
 		{"timeout", raw.Timeout, &settings.Timeout},
 		{"ttl", raw.TTL, &settings.TTL},
 	}
+
 	for _, duration := range durations {
 		value, err := time.ParseDuration(duration.raw)
 		if err != nil || value < time.Second || value > 24*time.Hour {
@@ -68,9 +69,11 @@ func Parse(raw config.StatusConfig) (Settings, error) {
 		}
 		*duration.target = value
 	}
+
 	if settings.TTL <= settings.Interval+settings.Timeout {
 		return settings, fmt.Errorf("server.status.ttl must exceed interval + timeout")
 	}
+
 	return settings, nil
 }
 
@@ -86,20 +89,24 @@ func Probe(ctx context.Context, settings Settings) (Reading, error) {
 	}
 	client := &http.Client{Timeout: settings.Timeout}
 	started := time.Now()
+
 	for attempt := 0; attempt < settings.Attempts; attempt++ {
 		if err := ctx.Err(); err != nil {
 			break
 		}
+
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, settings.URL, nil)
 		if err != nil {
 			return reading, err
 		}
+
 		response, err := client.Do(request)
 		if err == nil {
 			reading.HTTPStatus = response.StatusCode
 			// The health check only needs headers; bound body draining for reuse.
 			io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
 			response.Body.Close()
+
 			if response.StatusCode >= 200 && response.StatusCode < 300 {
 				reading.State = "up"
 				break
@@ -108,6 +115,7 @@ func Probe(ctx context.Context, settings Settings) (Reading, error) {
 				break
 			}
 		}
+
 		if attempt+1 < settings.Attempts {
 			select {
 			case <-ctx.Done():
@@ -115,8 +123,10 @@ func Probe(ctx context.Context, settings Settings) (Reading, error) {
 			}
 		}
 	}
+
 	reading.LatencyMS = time.Since(started).Milliseconds()
 	reading.UpdatedAtMS = strconv.FormatInt(time.Now().UnixMilli(), 10)
+
 	return reading, nil
 }
 

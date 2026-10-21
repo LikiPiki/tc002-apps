@@ -31,6 +31,7 @@ type Plan struct {
 func Equal(a, b any) bool {
 	left, _ := json.Marshal(a)
 	right, _ := json.Marshal(b)
+
 	return string(left) == string(right)
 }
 
@@ -56,6 +57,7 @@ func Prepare(ctx context.Context, c *awtrix.Client, target string, scripts []clo
 		}
 		plan.Changes = append(plan.Changes, change)
 	}
+
 	return plan, nil
 }
 
@@ -72,11 +74,13 @@ func prepareChange(ctx context.Context, client *awtrix.Client, script clockapps.
 		SettingsAfter: script.Settings,
 		Enabled:       true,
 	}
+
 	if before != nil {
 		change.SettingsBefore, err = client.ScriptSettings(ctx, script.Name)
 		if err != nil {
 			return change, err
 		}
+
 		for _, app := range apps {
 			if app.Name == script.Name && app.Origin == "script" {
 				change.Enabled = app.Enabled
@@ -90,6 +94,7 @@ func prepareChange(ctx context.Context, client *awtrix.Client, script clockapps.
 			change.SettingsChanged = true
 		}
 	}
+
 	return change, nil
 }
 
@@ -98,6 +103,7 @@ func (p Plan) String() string {
 	for _, ch := range p.Changes {
 		out += fmt.Sprintf("  %s: source-change=%v settings-change=%v\n", ch.Name, ch.SourceChanged, ch.SettingsChanged)
 	}
+
 	return out
 }
 
@@ -112,14 +118,17 @@ func (p Plan) Save(path string) error {
 	if err != nil {
 		return err
 	}
+
 	if _, err = f.Write(data); err != nil {
 		f.Close()
 		return err
 	}
+
 	if err = f.Sync(); err != nil {
 		f.Close()
 		return err
 	}
+
 	return f.Close()
 }
 
@@ -129,22 +138,26 @@ func LoadPlan(path, target string) (Plan, error) {
 	if err != nil {
 		return plan, err
 	}
+
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return plan, err
 	}
 	if plan.Target != target {
 		return plan, fmt.Errorf("backup target %q differs from %q", plan.Target, target)
 	}
+
 	return plan, nil
 }
 
 func verify(ctx context.Context, c *awtrix.Client, name string, window time.Duration) error {
 	timer := time.NewTimer(window)
 	defer timer.Stop()
+
 	for {
 		if err := c.CheckScript(ctx, name); err != nil {
 			return err
 		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -172,6 +185,7 @@ func (p Plan) Apply(ctx context.Context, client *awtrix.Client, window time.Dura
 			return report, err
 		}
 	}
+
 	return report, nil
 }
 
@@ -192,7 +206,9 @@ func (change Change) apply(ctx context.Context, client *awtrix.Client, window ti
 		result.FailedPhase = "verification"
 		return err
 	}
+
 	result.Verification = "passed"
+
 	return nil
 }
 
@@ -204,6 +220,7 @@ func (change Change) applySource(ctx context.Context, client *awtrix.Client, res
 			return err
 		}
 		result.Source = "updated"
+
 		return nil
 	}
 
@@ -216,6 +233,7 @@ func (change Change) applySource(ctx context.Context, client *awtrix.Client, res
 		result.FailedPhase = "source-conflict"
 		return fmt.Errorf("%s changed since planning", change.Name)
 	}
+
 	return nil
 }
 
@@ -237,9 +255,12 @@ func (change Change) applySettings(ctx context.Context, client *awtrix.Client, r
 			result.FailedPhase = "restart"
 			result.Verification = "failed"
 		}
+
 		return err
 	}
+
 	result.Settings = "applied"
+
 	return nil
 }
 
@@ -251,15 +272,18 @@ func (p Plan) Rollback(ctx context.Context, c *awtrix.Client) error {
 		if !ch.SourceChanged && !ch.SettingsChanged {
 			continue
 		}
+
 		current, err := c.Source(ctx, ch.Name)
 		if err != nil {
 			return err
 		}
+
 		sourceUnchanged := Equal(current, ch.Before)
 		sourceDeployed := current != nil && *current == ch.After
 		if !sourceUnchanged && !sourceDeployed {
 			return fmt.Errorf("%s changed since deployment; rollback stopped", ch.Name)
 		}
+
 		if ch.Before == nil {
 			if current != nil {
 				if err := c.SetScriptEnabled(ctx, ch.Name, false); err != nil {
@@ -268,19 +292,23 @@ func (p Plan) Rollback(ctx context.Context, c *awtrix.Client) error {
 			}
 			continue
 		}
+
 		if !Equal(current, ch.Before) {
 			if err := c.UpdateScript(ctx, ch.Name, current, []byte(*ch.Before)); err != nil {
 				return err
 			}
 		}
+
 		if len(ch.SettingsBefore) > 0 {
 			if err := c.ConfigureScript(ctx, ch.Name, ch.SettingsBefore); err != nil {
 				return err
 			}
 		}
+
 		if err := c.SetScriptEnabled(ctx, ch.Name, ch.Enabled); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

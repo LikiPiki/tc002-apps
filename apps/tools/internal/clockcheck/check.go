@@ -33,6 +33,7 @@ func ObserveHeadless(ctx context.Context, c *awtrix.Client, name string, duratio
 			if err := c.CheckScript(ctx, name); err != nil {
 				return checks, err
 			}
+
 			checks++
 		}
 	}
@@ -67,6 +68,7 @@ func ObserveScript(ctx context.Context, c *awtrix.Client, name string, duration 
 			if frames < 2 {
 				return frames, fmt.Errorf("not enough frames observed for %s", name)
 			}
+
 			return frames, c.CheckScript(ctx, name)
 		case <-ticker.C:
 			if err := c.CheckScript(ctx, name); err != nil {
@@ -85,7 +87,9 @@ func ObserveScript(ctx context.Context, c *awtrix.Client, name string, duration 
 			if err != nil {
 				return frames, err
 			}
-			if screen.Width <= 0 || screen.Width > 128 || screen.Height <= 0 || screen.Height > 32 || len(screen.Pixels) != screen.Width*screen.Height {
+			if screen.Width <= 0 || screen.Width > 128 ||
+				screen.Height <= 0 || screen.Height > 32 ||
+				len(screen.Pixels) != screen.Width*screen.Height {
 				return frames, fmt.Errorf("invalid pixel frame for %s: %dx%d, %d pixels", name, screen.Width, screen.Height, len(screen.Pixels))
 			}
 

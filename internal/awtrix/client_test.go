@@ -39,12 +39,16 @@ func TestInstallScriptUsesAtomicCompareAndSwap(t *testing.T) {
 					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 						t.Error(err)
 					}
-					if r.Header.Get("Content-Type") != "application/json" || body.Source != "return Demo()" || (body.Expected == nil) != (test.old == nil) {
+
+					if r.Header.Get("Content-Type") != "application/json" ||
+						body.Source != "return Demo()" ||
+						(body.Expected == nil) != (test.old == nil) {
 						t.Errorf("unexpected update: %+v", body)
 					}
 					if body.Expected != nil && *body.Expected != *test.old {
 						t.Error("old source was changed before comparison")
 					}
+
 					updated = true
 					fmt.Fprint(w, `{"ok":true}`)
 				default:
@@ -53,7 +57,9 @@ func TestInstallScriptUsesAtomicCompareAndSwap(t *testing.T) {
 				}
 			}))
 			defer server.Close()
+
 			client, _ := NewClient(server.URL)
+
 			err := client.InstallScript(context.Background(), "demo", []byte("return Demo()"))
 			if err != nil || !updated {
 				t.Fatalf("update = %v, error = %v", updated, err)
@@ -83,7 +89,9 @@ func TestAtomicUpdateNeverFallsBackOnFailure(t *testing.T) {
 				}
 			}))
 			defer server.Close()
+
 			client, _ := NewClient(server.URL)
+
 			if err := client.InstallScript(context.Background(), "demo", []byte("bad source")); err == nil || writes != 1 {
 				t.Fatalf("writes=%d error=%v", writes, err)
 			}
@@ -99,7 +107,9 @@ func TestAtomicUpdatesRequired(t *testing.T) {
 		fmt.Fprint(w, `{"scriptUpdates":false}`)
 	}))
 	defer server.Close()
+
 	client, _ := NewClient(server.URL)
+
 	if err := client.InstallScript(context.Background(), "demo", []byte("return Demo()")); err == nil {
 		t.Fatal("accepted unsupported firmware")
 	}
@@ -110,7 +120,9 @@ func TestCheckScriptDetectsRuntimeError(t *testing.T) {
 		fmt.Fprint(w, `[{"name":"demo","origin":"script","enabled":true,"error":{"message":"bad draw","hook":"draw"}}]`)
 	}))
 	defer server.Close()
+
 	client, _ := NewClient(server.URL)
+
 	if err := client.CheckScript(context.Background(), "demo"); err == nil {
 		t.Fatal("runtime error was ignored")
 	}
@@ -118,11 +130,13 @@ func TestCheckScriptDetectsRuntimeError(t *testing.T) {
 
 func TestInstallScriptRejectsUnsafeOrReservedNames(t *testing.T) {
 	client, _ := NewClient("http://127.0.0.1:1")
+
 	for _, name := range []string{"../demo", "active", "", "a/b"} {
 		if err := ValidateAppName(name); err == nil {
 			t.Errorf("accepted invalid name %q", name)
 		}
 	}
+
 	if err := client.InstallScript(context.Background(), "../demo", nil); err == nil {
 		t.Fatal("unsafe upload accepted")
 	}

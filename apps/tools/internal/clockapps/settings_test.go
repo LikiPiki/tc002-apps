@@ -9,7 +9,9 @@ import (
 func TestCatalogEnforcesConstraints(t *testing.T) {
 	root := t.TempDir()
 	fixture(t, root, "screens", "demo", "# @config caption text maxlen=5\nreturn Demo()")
+
 	c := config.ClockConfig{Screens: config.AppSettings{"demo": {"caption": "too long"}}}
+
 	if _, err := Select(root, c, "demo", "all"); err == nil {
 		t.Fatal("catalog bypassed constraints")
 	}
@@ -21,6 +23,7 @@ func TestSettingsConstraints(t *testing.T) {
 # @config speed slider min=1 max=10 step=1 default=5
 # @config ink color default="#abcdef"
 return Demo()`)
+
 	tests := []struct {
 		key   string
 		value any
@@ -63,6 +66,7 @@ func TestScheduleRejectedBeforeDeployment(t *testing.T) {
 				"off": times[1],
 			},
 		}
+
 		if err := validateDomain(script); err == nil {
 			t.Errorf("accepted %v", times)
 		}

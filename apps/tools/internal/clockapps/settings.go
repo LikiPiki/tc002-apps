@@ -32,6 +32,7 @@ func validateSettings(source []byte, settings map[string]any) error {
 			return fmt.Errorf("setting %q: %w", key, err)
 		}
 	}
+
 	return nil
 }
 
@@ -45,6 +46,7 @@ func parseFields(source []byte) (map[string]field, error) {
 		if !strings.HasPrefix(line, "#") {
 			break
 		}
+
 		text := strings.TrimSpace(strings.TrimPrefix(line, "#"))
 		words := strings.Fields(text)
 		if len(words) == 0 || words[0] != "@config" {
@@ -63,8 +65,10 @@ func parseFields(source []byte) (map[string]field, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", key, err)
 		}
+
 		declared[key] = field
 	}
+
 	return declared, nil
 }
 
@@ -80,6 +84,7 @@ func parseField(declaration, fieldType string) (field, error) {
 		typ:   fieldType,
 		attrs: map[string]string{},
 	}
+
 	for _, match := range attributes.FindAllStringSubmatch(declaration, -1) {
 		value := match[2]
 		if strings.HasPrefix(value, "\"") {
@@ -87,6 +92,7 @@ func parseField(declaration, fieldType string) (field, error) {
 		}
 		parsed.attrs[strings.ToLower(match[1])] = value
 	}
+
 	if fieldType == "slider" && (parsed.attrs["min"] == "" || parsed.attrs["max"] == "") {
 		parsed.attrs["min"] = "0"
 		parsed.attrs["max"] = "100"
@@ -98,6 +104,7 @@ func parseField(declaration, fieldType string) (field, error) {
 	if err := parsed.validateDefault(); err != nil {
 		return field{}, err
 	}
+
 	return parsed, nil
 }
 
@@ -129,9 +136,11 @@ func (f field) validateAttributes() error {
 			return fmt.Errorf("min exceeds max")
 		}
 	}
+
 	if f.typ == "select" && f.attrs["options"] == "" {
 		return fmt.Errorf("select requires options")
 	}
+
 	return nil
 }
 
@@ -157,12 +166,14 @@ func (f field) validateDefault() error {
 		if err != nil {
 			return fmt.Errorf("invalid numeric default")
 		}
+
 		value = number
 	}
 
 	if err := f.validate(value); err != nil {
 		return fmt.Errorf("default: %w", err)
 	}
+
 	return nil
 }
 
@@ -178,6 +189,7 @@ func (f field) validate(value any) error {
 		if !ok {
 			return bad
 		}
+
 		limit := 256
 		if v, ok := f.attrs["maxlen"]; ok {
 			limit, _ = strconv.Atoi(v)
@@ -185,12 +197,14 @@ func (f field) validate(value any) error {
 		if len(s) > limit {
 			return fmt.Errorf("exceeds maxlen=%d bytes", limit)
 		}
+
 		if f.typ == "select" {
 			for _, option := range strings.Split(f.attrs["options"], ",") {
 				if s == strings.TrimSpace(option) {
 					return nil
 				}
 			}
+
 			return fmt.Errorf("must be one of %s", f.attrs["options"])
 		}
 	case "number", "slider":
@@ -205,15 +219,18 @@ func (f field) validate(value any) error {
 		default:
 			return bad
 		}
+
 		if math.IsNaN(n) || math.IsInf(n, 0) {
 			return bad
 		}
+
 		if raw, ok := f.attrs["min"]; ok {
 			lo, _ := strconv.ParseFloat(raw, 64)
 			if n < lo {
 				return fmt.Errorf("below min=%s", raw)
 			}
 		}
+
 		if raw, ok := f.attrs["max"]; ok {
 			hi, _ := strconv.ParseFloat(raw, 64)
 			if n > hi {
@@ -225,6 +242,7 @@ func (f field) validate(value any) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -251,6 +269,7 @@ func Color(value any) (uint32, error) {
 				return 0, fmt.Errorf("color requires six hex digits")
 			}
 		}
+
 		var err error
 		n, err = strconv.ParseInt(v, base, 64)
 		if err != nil {
@@ -259,9 +278,11 @@ func Color(value any) (uint32, error) {
 	default:
 		return 0, fmt.Errorf("invalid RGB color type")
 	}
+
 	if n < 0 || n > 0xFFFFFF {
 		return 0, fmt.Errorf("RGB color outside 0..0xFFFFFF")
 	}
+
 	return uint32(n), nil
 }
 
@@ -269,6 +290,7 @@ func validateDomain(entry Script) error {
 	if entry.Kind != "services" || entry.Name != "display-policy" {
 		return nil
 	}
+
 	on, off := "10:00", "20:00"
 	if v, ok := entry.Settings["on"]; ok {
 		on, _ = v.(string)
@@ -276,11 +298,13 @@ func validateDomain(entry Script) error {
 	if v, ok := entry.Settings["off"]; ok {
 		off, _ = v.(string)
 	}
+
 	if !clockTime.MatchString(on) || !clockTime.MatchString(off) {
 		return fmt.Errorf("display-policy: on and off must be valid HH:MM times")
 	}
 	if on == off {
 		return fmt.Errorf("display-policy: on and off must differ")
 	}
+
 	return nil
 }
