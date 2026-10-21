@@ -42,7 +42,6 @@ help:
 		'make clock-validate Validate clock settings offline' \
 		'make clock-deploy   Upload Berry apps (APP=<name> selects one)' \
 		'make clock-check    Check Berry apps in disposable AWTRIX (CHECK_ALL=true for all apps)' \
-		'make status-check   Check HTTP status integration in disposable AWTRIX' \
 		'make weather-check  Check weather producer and both weather screens' \
 		'make sprites        Generate Berry arrays from sprite PNGs' \
 		'make sprites-check  Verify generated sprite arrays' \
@@ -55,9 +54,7 @@ help:
 clock-check:
 	sh scripts/check-clock.sh
 
-.PHONY: status-check clock-validate
-status-check:
-	sh scripts/check-status.sh
+.PHONY: clock-validate
 
 .PHONY: weather-check
 weather-check:

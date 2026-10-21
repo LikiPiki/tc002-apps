@@ -47,7 +47,7 @@ Make commands also require Make and a POSIX shell; use Linux, macOS, or WSL. `ma
 
 ## Local server with physical clocks
 
-Use this mode when your computer and TC002 share a reachable LAN and you want to debug the server against the real display. `dev/compose.lan.yaml` reuses the production server definitions with local image tags and `restart: "no"`. It runs the weather provider by default; status-provider and worker are selected explicitly with `SERVICE`.
+Use this mode when your computer and TC002 share a reachable LAN and you want to debug the server against the real display. `dev/compose.lan.yaml` reuses the production server definitions with local image tags and `restart: "no"`. It runs the weather provider by default; worker can be selected explicitly with `SERVICE`.
 
 The containers read `configs/config.toml` and your `configs/config.local.toml`, including the real clock address and weather location. For example:
 
@@ -88,7 +88,7 @@ make clock-show APP=weather-current
 
 `AWTRIX_URL=http://<clock-address> make lan` selects one clock instead of the configured list. Apply the same override to `lan-doctor` and `lan-once`. Changes to container environment variables need `make lan` to recreate the container; `lan-restart` reloads only mounted config. `CONFIG` and `LOCAL_CONFIG` may select other files under `configs/`, which is mounted read-only into `/app/configs`. Leave `AWTRIX_URL` unset to use `[clock] urls`. Unreachable/non-AWTRIX addresses are warned about and skipped independently on every cycle.
 
-You can run another server explicitly, for example `make lan SERVICE=status-provider` after configuring `server.status.url`. The `tc002-lan` project has its own containers/network and local image tags. `make lan-down` removes this project's containers and network.
+The `tc002-lan` project has its own containers/network and local image tags. `make lan-down` removes this project's containers and network.
 
 For IDE breakpoints or native Go debugging, run `go run ./apps/server/cmd/weather-provider` directly from the checkout. It uses the same personal config and physical-clock target. Stop the containerized copy with `make lan-down` first so only one provider publishes the weather.
 

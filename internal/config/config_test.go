@@ -153,29 +153,6 @@ func TestToolSelectionDoesNotChangeServerSelection(t *testing.T) {
 	}
 }
 
-func TestStatusSettingsMergeByField(t *testing.T) {
-	dir := t.TempDir()
-	base := filepath.Join(dir, "base.toml")
-	personal := filepath.Join(dir, "personal.toml")
-
-	fixture(t, base, "[server.status]\nurl = \"https://example.com/health\"\ninterval = \"45s\"\n")
-	fixture(t, personal, "[server.status]\nlabel = \"HOME\"\nattempts = 2\n")
-
-	config, err := Load(base, personal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	status := config.Server.Status
-
-	if status.URL != "https://example.com/health" ||
-		status.Interval != "45s" ||
-		status.Label != "HOME" ||
-		status.Attempts != 2 ||
-		status.TTL != "90s" {
-		t.Fatalf("unexpected merged status settings: %+v", status)
-	}
-}
-
 func TestWeatherSettingsMergeWithoutResettingLocation(t *testing.T) {
 	dir := t.TempDir()
 	base := filepath.Join(dir, "base.toml")
