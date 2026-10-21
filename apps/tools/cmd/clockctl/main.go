@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -14,6 +13,13 @@ import (
 
 func main() {
 	if len(os.Args) > 1 {
+		if os.Args[1] == "doctor" || os.Args[1] == "status" {
+			if err := runInspection(os.Args[1], os.Args[2:]); err != nil && err != flag.ErrHelp {
+				slog.Error("inspection failed", "error", err)
+				os.Exit(1)
+			}
+			return
+		}
 		if os.Args[1] == "build-list" || os.Args[1] == "server-list" {
 			if err := runBuildList(os.Args[1], os.Args[2:]); err != nil && err != flag.ErrHelp {
 				slog.Error("build selection failed", "error", err)
@@ -34,7 +40,8 @@ func main() {
 		}
 	}
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | deploy|show|start|stop|list|build-list|server-list|check [flags]")
+		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | <command> [flags]")
+		fmt.Fprintln(os.Stderr, "Commands: deploy, rollback, validate, show, start, stop, list, check, doctor, status, build-list, server-list")
 		fmt.Fprintln(os.Stderr, "Run clockctl deploy --help for Berry upload options.")
 		flag.PrintDefaults()
 	}
@@ -47,17 +54,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	config, err := projectconfig.Load(*base, *personal)
+	config, err := loadTargetConfig(flag.CommandLine, *base, *personal, *url)
 	if err != nil {
 		slog.Error("invalid config", "error", err)
 		os.Exit(1)
 	}
-	if *url != "" {
-		config.Clock.URL = *url
-	}
 	client, err := awtrix.NewClient(config.Clock.URL)
 	if err == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := commandContext(10 * time.Second)
 		defer cancel()
 		err = client.Notify(ctx, *text)
 	}

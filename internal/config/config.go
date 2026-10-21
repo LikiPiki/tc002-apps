@@ -57,7 +57,7 @@ func Load(base, personal string) (Config, error) {
 	c.Clock.Screens, c.Clock.Services, c.Clock.OnDemand = AppSettings{}, AppSettings{}, AppSettings{}
 	c.Server.Worker.Interval = "1m"
 	for index, path := range []string{base, personal} {
-		if index == 1 && path == "" {
+		if path == "" {
 			continue
 		}
 		data, err := os.ReadFile(path)

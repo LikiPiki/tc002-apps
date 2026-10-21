@@ -5,10 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockapps"
@@ -29,6 +27,8 @@ func runScripts(command string, args []string) error {
 	dryRun := flags.Bool("dry-run", false, "deploy: inspect changes without writing")
 	backup := flags.String("backup", "", "deploy: new recovery file; rollback: recovery file to restore")
 	observe := flags.Duration("observe", 1500*time.Millisecond, "deploy: verification window per enabled app")
+	appsDir := flags.String("apps-dir", "apps/clock", "clock app catalog directory")
+	jsonOutput := flags.Bool("json", false, "JSON for list, validate, or deploy")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -38,9 +38,10 @@ func runScripts(command string, args []string) error {
 	if *timeout <= 0 || *observe < 0 {
 		return fmt.Errorf("timeout must be positive and observe nonnegative")
 	}
-	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	ctx, cancel := context.WithTimeout(signalCtx, *timeout)
+	if *jsonOutput && command != "list" && command != "validate" && command != "deploy" {
+		return fmt.Errorf("--json is supported by list, validate, deploy, doctor and status")
+	}
+	ctx, cancel := commandContext(*timeout)
 	defer cancel()
 	if command == "check" {
 		if err := clockcheck.CheckInvocation(*url, os.Getenv("TC002_CHECK_SANDBOX")); err != nil {
@@ -50,21 +51,17 @@ func runScripts(command string, args []string) error {
 			return fmt.Errorf("check requires --duration >= 250ms")
 		}
 	}
-	config, err := projectconfig.Load(*base, *personal)
+	config, err := loadTargetConfig(flags, *base, *personal, *url)
 	if err != nil {
 		return err
-	}
-	if env := os.Getenv("AWTRIX_URL"); env != "" {
-		config.Clock.URL = env
-	}
-	if *url != "" {
-		config.Clock.URL = *url
 	}
 	client, err := awtrix.NewClient(config.Clock.URL)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Target: %s\n", config.Clock.URL)
+	if !*jsonOutput {
+		fmt.Printf("Target: %s\n", config.Clock.URL)
+	}
 	if command == "check" {
 		if err := clockcheck.RequireSandbox(ctx, client); err != nil {
 			return err
@@ -115,17 +112,30 @@ func runScripts(command string, args []string) error {
 		fmt.Printf("Showing %s\n", *app)
 		return nil
 	}
-	scripts, err := clockapps.Select("apps/clock", config.Clock, *app, *kind)
+	scripts, err := clockapps.Select(*appsDir, config.Clock, *app, *kind)
 	if err != nil {
 		return err
 	}
 	if len(scripts) == 0 {
+		if *jsonOutput {
+			return printJSON(map[string]any{"target": config.Clock.URL, "apps": []string{}})
+		}
 		fmt.Println("No clock apps selected")
 		return nil
 	}
 	if command == "validate" {
+		if *jsonOutput {
+			return printJSON(map[string]any{"target": config.Clock.URL, "validated": len(scripts)})
+		}
 		fmt.Printf("Validated %d clock apps\n", len(scripts))
 		return nil
+	}
+	if command == "list" && *jsonOutput {
+		catalog := make([]map[string]string, 0, len(scripts))
+		for _, script := range scripts {
+			catalog = append(catalog, map[string]string{"name": script.Name, "kind": script.Kind, "path": script.Path})
+		}
+		return printJSON(map[string]any{"target": config.Clock.URL, "apps": catalog})
 	}
 	if command != "list" {
 		if err := client.CheckScripting(ctx); err != nil {
@@ -137,8 +147,13 @@ func runScripts(command string, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Print(plan.String())
+		if !*jsonOutput {
+			fmt.Print(plan.String())
+		}
 		if *dryRun {
+			if *jsonOutput {
+				return printJSON(plan)
+			}
 			return nil
 		}
 		if *backup == "" {
@@ -150,9 +165,17 @@ func runScripts(command string, args []string) error {
 		if err := plan.Save(*backup); err != nil {
 			return err
 		}
-		fmt.Printf("Recovery record: %s\n", *backup)
+		if !*jsonOutput {
+			fmt.Printf("Recovery record: %s\n", *backup)
+		}
 		report, err := plan.Apply(ctx, client, *observe)
-		fmt.Print(report.String())
+		if *jsonOutput {
+			if outputErr := printJSON(map[string]any{"plan": plan, "report": report, "backup": *backup}); outputErr != nil {
+				return outputErr
+			}
+		} else {
+			fmt.Print(report.String())
+		}
 		return err
 	}
 	for _, script := range scripts {

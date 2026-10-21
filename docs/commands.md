@@ -1,5 +1,18 @@
 # Go command reference
 
+## Standalone device management
+
+With an explicit `--url` or `AWTRIX_URL`, notification, show/start/stop, rollback, doctor and status commands work outside a checkout even if the implicit shared config is absent. Existing or explicitly selected config files are still validated. `--config '' --local-config ''` explicitly disables file loading. Catalog commands accept `--apps-dir /path/to/apps/clock` along with absolute config paths.
+
+```sh
+clockctl --url http://192.168.1.50 --text 'Hello'
+clockctl doctor --url http://192.168.1.50
+clockctl status --url http://192.168.1.50 --json
+clockctl deploy --dry-run --json
+```
+
+`doctor` checks device/API access, scripting, installed app errors, atomic updates and frame dimensions. `status` reports device and installed app state. Both return nonzero on diagnosed problems. `--json` is also available for catalog `list`, offline `validate`, and deployment (including `--dry-run`); diagnostics go to stderr so stdout remains parseable.
+
 ## Offline validation
 
 Run `make clock-validate` or `clockctl validate` to validate the selected clock apps without network requests. This checks lifecycle markers, declared settings, defaults, lengths, select options, numeric bounds, colors and display-policy time semantics before deployment.
