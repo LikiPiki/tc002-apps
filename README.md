@@ -4,13 +4,11 @@ Apps for Ulanzi TC002 running AWTRIX NG, with Go services for processing data an
 
 ## Current status
 
-This repository is a small toolkit with autonomous clock apps, weather and HTTP health integrations:
+This repository is a small toolkit with autonomous clock apps and a weather integration:
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - A list of clock profile files can assign different screen sets/settings to any number of devices; unreachable/non-AWTRIX targets are skipped with warnings. One VPS serves the configured profiles with common data sources. See [clock profiles](docs/configuration.md#different-clock-configurations-from-the-main-config).
-- `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
-- `status-provider` checks an HTTP health endpoint and publishes to the `service-status` screen with explicit data expiry. See [setup and contract](docs/integrations/service-status.md).
-- `weather-provider` fetches Open-Meteo current conditions and three-day forecasts for two separate screens. It can also print weather directly on the VPS. See [weather setup](docs/integrations/weather.md).
+- `tc002-server` is one process/container containing all server features. It fetches Open-Meteo weather for two screens and can print readings directly on the VPS. See [weather setup](docs/integrations/weather.md).
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
 
@@ -22,7 +20,7 @@ Physical clocks must run **AWTRIX NG**. The stock Ulanzi firmware and AWTRIX 3 a
 | --- | --- | --- |
 | ![Animated cigar](docs/previews/cigar.gif) | ![Animated mackerel](docs/previews/mackerel.gif) | ![Animated seagull](docs/previews/seagull.gif) |
 
-Captured from the real headless AWTRIX engine. See [preview generation](docs/previews/README.md). The [service-status screen](docs/integrations/service-status.md) adds live HTTP health data with expiry.
+Captured from the real headless AWTRIX engine. See [preview generation](docs/previews/README.md). The [weather integration](docs/integrations/weather.md) adds live weather data with expiry.
 
 ## Project structure
 
@@ -38,7 +36,7 @@ tc002-apps/
 │   │   └── assets/icons/          Shared clock icons (placeholder)
 │   ├── server/                    ON A VPS — independent Go services
 │   │   ├── README.md              Server-only responsibilities and builds
-│   │   ├── cmd/worker/main.go     Periodic service entry point (placeholder)
+│   │   ├── cmd/server/main.go     Complete server entry point
 │   │   └── Dockerfile             Server sources + shared libraries only
 │   └── tools/                     ON A COMPUTER / ONE-OFF CONTAINER — utilities
 │       ├── README.md              Utility layout and Docker usage
@@ -53,7 +51,7 @@ tc002-apps/
 │   ├── awtrix/                    HTTP API client; no display-checking loops
 │   └── config/                    TOML parsing/merging; no source discovery
 ├── configs/
-│   ├── config.toml                Shared clock, build, and runtime settings
+│   ├── config.toml.example        Versioned template for the local working config
 │   └── config.local.toml.example  Personal project config template
 ├── deploy/                        PRODUCTION — run Go services on your VPS
 │   ├── compose.yaml               Services, images, and runtime settings
@@ -62,7 +60,7 @@ tc002-apps/
 │   ├── compose.yaml               AWTRIX + Go tools, isolated from production
 │   └── Dockerfile.awtrix          Build the pinned headless AWTRIX engine
 ├── scripts/                       Shell entry points used by Make
-│   ├── select-apps.sh             Read Go build selection from project TOML
+│   ├── select-tools.sh            Read utility selection from project TOML
 │   └── check-clock.sh             Run disposable local Berry runtime checks
 ├── docs/
 │   ├── setup.md                   Connect to a physical TC002
@@ -85,20 +83,21 @@ Generated locally (not committed):
   bin/<group>/<app>               Native binaries (server or tools)
   dist/<group>/<app>.tar.gz       Exported images, separated by group
   configs/config.local.toml       Your clock, app selections, and runtime overrides
+  configs/config.toml             Local working config; never versioned or baked into images
 ```
 
 ### Where to start
 
 | I want to... | Start here | First step |
 | --- | --- | --- |
-| Try it without a clock | [Local development](docs/development.md) | After cloning, run `make dev-check` and open http://localhost:8080 |
+| Try it without a clock | [Local development](docs/development.md) | Run `make init-config`, then `make dev-check` and open http://localhost:8080 |
 | Debug a local server with my physical clock | [LAN development](docs/development.md#local-server-with-physical-clocks) | Set the clock IP/location in personal config, then run `make lan` and `make lan-logs` |
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
-| Process data on my VPS | [Server apps](apps/server/README.md) | Add `apps/server/cmd/<name>/main.go` |
-| Show weather on the VPS and clock | [Weather integration](docs/integrations/weather.md) | Configure coordinates, run `weather-provider --print`, then deploy the two screens |
+| Add server-side data processing | [Server](apps/server/README.md) | Add a feature under `apps/server/internal/` and wire it into `cmd/server` |
+| Show weather on the VPS and clock | [Weather integration](docs/integrations/weather.md) | Configure coordinates, run `tc002-server --print`, then deploy the two screens |
 | Manage clocks or development workflows | [Utility apps](apps/tools/README.md) | Use `clockctl` or the Make commands |
-| Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Set `server.apps`, then run `make docker-save GROUP=server` |
+| Build and deploy the server | [VPS deployment](docs/deployment.md) | Run `make docker-save-server` or `sh deploy/deploy.sh` |
 | Plan a screen/VPS integration (alpha) | [Integration design](docs/integrations.md) | Explore the ID/contract convention; automatic pairing is not implemented |
 | Contribute a change | [Contributing](CONTRIBUTING.md) | Follow the app layout and run the relevant checks |
 
@@ -135,6 +134,7 @@ Clone the repository first:
 ```sh
 git clone https://github.com/LikiPiki/tc002-apps.git
 cd tc002-apps
+make init-config # Creates config.toml only if it is absent.
 ```
 
 ### Native Go
@@ -144,34 +144,33 @@ For standalone notifications and diagnostics, download the `clockctl` archive fo
 ```sh
 make check
 make build
-go run ./apps/server/cmd/worker --once
+go run ./apps/server/cmd/server --help
 # Replace the address with your clock's reachable IP or hostname.
 AWTRIX_URL=http://192.168.1.50 go run ./apps/tools/cmd/clockctl --text 'Hello from Go'
 ```
 
 The notification command needs a reachable AWTRIX NG instance without API authentication. See [clock setup](docs/setup.md) and the [command reference](docs/commands.md) for flags and environment variables.
 
-### Select what to build
+### Build the complete server
 
-All settings use `configs/config.toml` and optional `configs/config.local.toml` overrides. Start with `cp configs/config.local.toml.example configs/config.local.toml`. `[server] apps` selects VPS commands; `[tools] apps` selects utility commands. Under `[clock.deploy]`, select `screens`, `services`, and `on_demand` independently. See [Project configuration](docs/configuration.md).
+All settings use local `configs/config.toml` and optional `configs/config.local.toml`. Create the working file once with `make init-config`; only `.example` templates are versioned, and existing files are preserved. The server always includes all server features in one binary/image. See [configuration](docs/configuration.md).
 
 ```sh
-make list-apps
-make build
-make docker-build
-make docker-build GROUP=server # Only VPS images
-make build GROUP=tools         # Only utility binaries
+make build-server        # Complete bin/server/tc002-server
+make docker-build-server # One tc002-apps/server:local image
+make docker-save-server  # One dist/server/tc002-server.tar.gz archive
+make build               # Complete server only
+make list-tools
+make build-tools
 ```
 
-`GROUP=all` is the default for Go build/export commands. Artifacts have qualified names such as `server/worker` and `tools/clockctl`. Run `make docker-save GROUP=server` to export VPS images to `dist/server/<app>.tar.gz`. See [deployment](docs/deployment.md) and [utility apps](apps/tools/README.md).
-
-This selection applies to `make build`, `make docker-build`, and `make docker-save`. It does not control which Compose services are started.
+Server builds have no per-feature selection, generated app sets or feature-specific containers. See [deployment](docs/deployment.md) and [utilities](apps/tools/README.md).
 
 ### Deploy Berry apps to the clock
 
 ```sh
-cp configs/config.local.toml.example configs/config.local.toml
-# Set [clock] urls in configs/config.local.toml.
+make init-config
+# Set [clock] urls or profiles in configs/config.toml.
 make clock-list
 make clock-deploy          # Apps selected by category in TOML
 make clock-deploy KIND=services
@@ -180,17 +179,17 @@ make clock-start APP=<tool> # Start an installed on-demand app
 make clock-stop APP=<tool>  # End its session
 ```
 
-Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Settings live in `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>`. Shared TOML defaults to the local virtual clock; personal overrides are excluded from Git. To use shared defaults alone, pass `LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for error checks.
+Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Settings live in `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>`. Working configs and local profiles are excluded from Git. For template-only virtual settings, pass `CONFIG=configs/config.toml.example LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment).
 
 ## Docker
 
 ```sh
-# Configure configs/config.local.toml before sending to a physical clock.
-sh deploy/deploy.sh worker
-docker compose -f deploy/compose.yaml logs -f worker
+# Configure configs/config.toml before sending to physical clocks.
+sh deploy/deploy.sh
+docker compose -f deploy/compose.yaml logs -f server
 ```
 
-Containers read the same TOML files through a read-only mount; no `.env` file is needed. The worker is a placeholder and logs a tick at `server.worker.interval`. Stop it with `docker compose -f deploy/compose.yaml down`. See [VPS deployment](docs/deployment.md) for image-only deployment and platform selection.
+The single server container reads TOML through a read-only mount; no `.env` file is needed. Stop it with `docker compose -f deploy/compose.yaml down`. `make lan` runs the same complete server locally against physical clocks. See [VPS deployment](docs/deployment.md) for image-only deployment and platform selection.
 
 ## Local testing without a clock
 

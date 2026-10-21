@@ -1,12 +1,12 @@
 # Screen/server integrations
 
-The [service-status](integrations/service-status.md) and [weather](integrations/weather.md) integrations are implemented and tested end to end. Integration registry/config wiring remains experimental: there is no accepted `[integrations]` TOML section or automatic component matching yet.
+The [weather integration](integrations/weather.md) is implemented and tested end to end. Integration registry/config wiring remains experimental: there is no accepted `[integrations]` TOML section or automatic component matching yet.
 
 An integration is one user-facing feature that may span multiple runtime components. Runtime directories answer **where code executes**; an integration ID answers **which components work together**.
 
 ## Current state
 
-The bundled Berry animations and display policy run autonomously. `status-provider` supplies HTTP health; `weather-provider` fetches Open-Meteo data for current-weather and forecast screens. `worker` remains a periodic-process example. There is no cross-runtime registry, automatic pairing, or MQTT transport yet. Existing TOML selections choose artifacts independently.
+The bundled Berry animations and display policy run autonomously. The unified server fetches Open-Meteo data for current-weather and forecast screens. All server functionality runs in one process/container. There is no cross-runtime registry, automatic pairing, or MQTT transport yet. Clock profiles choose screen sets independently.
 
 ## Convention for a real integration
 
@@ -15,7 +15,7 @@ Give the feature a stable ID, such as `weather`, and document its wiring togethe
 ```text
 weather
 ├── consumers: apps/clock/screens/weather-current/ and weather-forecast/
-├── producer: apps/server/cmd/weather-provider/main.go
+├── producer: apps/server/internal/weatherprovider/ in cmd/server
 └── contract: docs/integrations/weather.md
 ```
 

@@ -13,7 +13,7 @@ Development: the same AWTRIX engine runs in Docker with a virtual 52 x 16 displa
 Future MQTT: a transport for events and data; not a second owner of device policy.
 ```
 
-VPS processes live in `apps/server`; CLI, build discovery, catalogs, and check scenarios live in `apps/tools`. Berry runs inside AWTRIX on the TC002. Each Go family has its own Dockerfile, which copies only that family's sources plus shared libraries. Production Compose contains server services only; utilities can be run separately on a computer or on demand on a VPS.
+The complete VPS process lives in `apps/server/cmd/server`; server features live under `apps/server/internal`. CLI, utility discovery, catalogs and check scenarios live in `apps/tools`. Berry runs inside AWTRIX on the TC002. Production Compose has exactly one server service and image. Utilities run separately on demand.
 
 ### Go dependency rules
 
@@ -24,11 +24,11 @@ apps/server ─X─> apps/tools/internal
 shared internal ─X─> application/tool internals
 ```
 
-Root `internal/awtrix` implements API requests/responses, while `apps/tools/internal/clockcheck` owns sampling loops and assertions. Root `internal/config` parses/merges TOML; it does not discover source files. `apps/tools/internal/build` selects Go artifacts, and `clockapps` selects Berry apps. Go's `internal` import rules enforce the utility implementation boundary. Keep server-only business logic in `apps/server/internal` when needed.
+Root `internal/awtrix` implements API requests/responses, while `apps/tools/internal/clockcheck` owns sampling loops and assertions. Root `internal/config` parses/merges TOML. `apps/tools/internal/build` selects utility artifacts only; the server has a fixed complete entry point. `clockapps` selects Berry apps. Go's `internal` import rules enforce the utility implementation boundary.
 
-`internal/config` enforces TOML syntax and project field types, but semantic validation belongs to consumers: build selection validates only selected Go artifacts, clock clients validate the effective URL after overrides, the Berry catalog validates selected app metadata/settings, and worker runtime validates its effective interval. Broken unused clock/runtime values do not block unrelated build operations.
+`internal/config` enforces TOML syntax and project field types, but semantic validation belongs to consumers: utility selection validates utility sources, clock clients validate addresses, the Berry catalog validates app metadata/settings, and the server validates runtime feature settings. Broken unused clock/runtime values do not block utility builds.
 
-The root Go module is shared, but runtime dependencies and source copies are separated. Build artifacts include their group (`server/worker`, `tools/clockctl`) so a utility and a server can even have the same short name without overwriting each other. Make is orchestration; root `scripts/`, `dev/`, and `deploy/` contain shell/infrastructure files, not application packages.
+The root Go module is shared, but runtime dependencies and source copies are separated. The complete server binary is `bin/server/tc002-server` and its image is `tc002-apps/server:local`; utility binaries live in `bin/tools/`. Make is orchestration; root `scripts/`, `dev/` and `deploy/` contain infrastructure, not per-feature server selectors.
 
 ## Three Berry lifecycle kinds
 
@@ -52,11 +52,11 @@ Keep independent failure domains separate. Group related rules under the owner o
 
 ## Configuration model
 
-`configs/config.toml` contains shared defaults. Optional `config.local.toml` overrides only specified fields. Both native commands and containers use `internal/config` to read the same schema.
+`configs/config.toml.example` is the tracked template. `make init-config` exclusively creates a local, ignored `config.toml` and preserves existing files. Optional `config.local.toml` overrides fields. Images ship the example only; runtime settings come from the read-only mount. Native commands and containers use the same schema.
 
 - `clock.deploy.screens/services/on_demand` select upload artifacts.
 - `clock.screens.<name>`, `clock.services.<name>`, and `clock.on_demand.<name>` contain app settings.
-- `server.apps` selects VPS artifacts; `tools.apps` selects utility artifacts. `GROUP=server|tools|all` filters Go builds/exports. `server.worker` contains worker runtime settings.
+- `server.weather` contains server runtime settings; all server features are included in the single build. `tools.apps` selects utility artifacts only.
 
 App selection is not app behavior. A deployed service can have a feature disabled in its own settings. An empty clock-category list means no uploads; `["*"]` discovers all apps in that category. Unselected remote apps are not removed or disabled automatically.
 
@@ -79,6 +79,6 @@ Berry modules share code but are not running apps. They are not supported by our
 
 ## Integrations across runtimes
 
-**Alpha / design-stage:** a shared integration ID is intended to group server producers, optional clock-side services, and visual consumers by feature without merging their source trees. Their relationship is an explicit data contract (channel, payload version, freshness, and failure behavior), not an assumed match of directory names. The current apps are autonomous and the worker is a placeholder; no pairing registry or `[integrations]` TOML schema is implemented yet. See [integration architecture](integrations.md) for the experimental convention and first-implementation requirements.
+Weather is a working cross-runtime integration: its server-side processing is compiled into the complete server, while two Berry consumers run on the clock. The relationship is an explicit data contract, not a separate container or an assumed name match. No pairing registry or `[integrations]` TOML schema is implemented yet. See [integration architecture](integrations.md).
 
 See [configuration](configuration.md), [commands](commands.md), and [contributing](../CONTRIBUTING.md).

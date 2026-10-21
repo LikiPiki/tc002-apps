@@ -22,12 +22,12 @@ func fixture(t *testing.T, root, group, name string) {
 	}
 }
 
-func TestBuildIgnoresUnrelatedClockAndWorkerSettings(t *testing.T) {
+func TestToolBuildIgnoresRuntimeSettings(t *testing.T) {
 	root := t.TempDir()
-	fixture(t, root, "server", "worker")
+	fixture(t, root, "tools", "clockctl")
 
 	path := filepath.Join(t.TempDir(), "config.toml")
-	if err := os.WriteFile(path, []byte("[clock]\nurl = \"invalid URL\"\n[server.worker]\ninterval = \"invalid interval\"\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("[clock]\nurl = \"invalid URL\"\n[server.weather]\ninterval = \"invalid interval\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -36,49 +36,36 @@ func TestBuildIgnoresUnrelatedClockAndWorkerSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if targets, err := Select(root, c.Server.Apps, c.Tools.Apps, "server"); err != nil || len(targets) != 1 {
+	if targets, err := Select(filepath.Join(root, "tools"), c.Tools.Apps); err != nil || len(targets) != 1 {
 		t.Fatalf("unrelated runtime fields blocked build: %v, %v", targets, err)
 	}
 
-	if _, err := Select(root, []string{}, nil, "server"); err == nil {
-		t.Fatal("build consumer accepted empty server selection")
-	}
 }
 
-func TestServerSelectionAndDefaultDiscovery(t *testing.T) {
+func TestUtilitySelectionAndDiscovery(t *testing.T) {
 	root := t.TempDir()
-	fixture(t, root, "server", "worker")
+	fixture(t, root, "server", "server")
 	fixture(t, root, "tools", "clockctl")
+	fixture(t, root, "tools", "spritegen")
 
-	all, err := Select(root, nil, nil, "all")
-	if err != nil || !reflect.DeepEqual(all, []Target{{"server", "worker"}, {"tools", "clockctl"}}) {
+	all, err := Select(filepath.Join(root, "tools"), nil)
+	if err != nil || !reflect.DeepEqual(all, []string{"clockctl", "spritegen"}) {
 		t.Fatalf("unexpected discovery: %v, %v", all, err)
 	}
 
-	selected, err := Select(root, []string{"worker", "worker"}, nil, "server")
-	if err != nil || !reflect.DeepEqual(selected, []Target{{"server", "worker"}}) {
-		t.Fatalf("unexpected server selection: %v, %v", selected, err)
+	selected, err := Select(filepath.Join(root, "tools"), []string{"clockctl", "clockctl"})
+	if err != nil || !reflect.DeepEqual(selected, []string{"clockctl"}) {
+		t.Fatalf("unexpected utility selection: %v, %v", selected, err)
 	}
 
-	selected, err = Select(root, nil, []string{}, "all")
-	if err != nil || len(selected) != 1 || selected[0].Group != "server" {
+	selected, err = Select(filepath.Join(root, "tools"), []string{})
+	if err != nil || len(selected) != 0 {
 		t.Fatalf("tools opt-out failed: %v, %v", selected, err)
 	}
 
 	for _, name := range []string{"missing", "../clockctl"} {
-		if _, err := Select(root, []string{name}, nil, "server"); err == nil {
+		if _, err := Select(filepath.Join(root, "tools"), []string{name}); err == nil {
 			t.Errorf("accepted %q", name)
 		}
-	}
-}
-
-func TestGroupsHaveSeparateArtifactNames(t *testing.T) {
-	root := t.TempDir()
-	fixture(t, root, "server", "same")
-	fixture(t, root, "tools", "same")
-
-	targets, err := Select(root, nil, nil, "all")
-	if err != nil || len(targets) != 2 || targets[0].String() == targets[1].String() {
-		t.Fatalf("artifact name collision: %v, %v", targets, err)
 	}
 }

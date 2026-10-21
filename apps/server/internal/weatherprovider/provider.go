@@ -87,7 +87,7 @@ func (provider *Provider) fetchOnce(ctx context.Context, endpoint string) (Readi
 	if err != nil {
 		return Reading{}, false, err
 	}
-	request.Header.Set("User-Agent", "tc002-apps/weather-provider")
+	request.Header.Set("User-Agent", "tc002-apps/server")
 
 	response, err := provider.http.Do(request)
 	if err != nil {

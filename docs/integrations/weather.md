@@ -4,7 +4,7 @@ One VPS process fetches [Open-Meteo](https://open-meteo.com/) weather and suppli
 
 ## Components
 
-- `apps/server/cmd/weather-provider`: fetches, validates and publishes weather.
+- `apps/server/internal/weatherprovider`: fetches, validates and publishes weather inside the complete `apps/server/cmd/server` process.
 - `apps/clock/screens/weather-current`: current temperature, wind speed, location label and a day/night/condition icon.
 - `apps/clock/screens/weather-forecast`: three daily forecasts, cycling every three seconds during a nine-second turn. Each page shows a weekday, precipitation probability and minimum/maximum temperature.
 
@@ -33,7 +33,7 @@ Defaults are `interval = "15m"`, `timeout = "15s"`, `ttl = "2h"`, `attempts = 3`
 ## Look at weather on the VPS
 
 ```sh
-go run ./apps/server/cmd/weather-provider --print
+go run ./apps/server/cmd/server --print
 ```
 
 This fetches one reading and prints formatted JSON without connecting to any clock. It includes temperature, feels-like temperature, humidity, wind, WMO condition code, day/night state and three future daily forecasts. Units are Celsius, metres per second and percent.
@@ -45,15 +45,15 @@ make clock-deploy APP=weather-current
 make clock-deploy APP=weather-forecast
 
 # Fetch and publish once:
-go run ./apps/server/cmd/weather-provider --once
+go run ./apps/server/cmd/server --once
 
 # Show either installed screen:
 make clock-show APP=weather-current
 make clock-show APP=weather-forecast
 
 # Run continuously on the VPS:
-sh deploy/deploy.sh weather-provider
-docker compose -f deploy/compose.yaml logs -f weather-provider
+sh deploy/deploy.sh
+docker compose -f deploy/compose.yaml logs -f server
 ```
 
 `screens` names the installed consumers on each clock. For a current-only installation, set `screens = ["weather-current"]`. One VPS fetches weather once per cycle and sends the same reading to every device in `[clock] urls`. Deployment selections and running Compose services remain independent of the Go build selection. `AWTRIX_URL` selects one target instead of the list when publishing; it is ignored by `--print`.
@@ -62,7 +62,7 @@ For different clock screen sets, list any number of profile files under `[clock]
 
 The clock's configured HTTP address must be reachable from the VPS. If it is on your home LAN, provide routing/VPN access between the VPS and that network.
 
-For the regular dev clock, deploy the screens to the local instance and run `docker compose -p tc002-dev -f dev/compose.yaml run --rm --build weather-provider --once`. This container reads your configured location and overrides only the clock URL with the internal virtual-clock address.
+For the regular dev clock, deploy the screens to the local instance and run `make dev-server`, or `docker compose -p tc002-dev -f dev/compose.yaml run --rm --build server --once` for one update. The complete server reads your location and overrides only the clock URL with the internal virtual-clock address.
 
 For a local server connected to physical clocks on your LAN, use `make lan`, `make lan-logs`, `make lan-once`, and `make lan-down`. This mode reads `[clock] urls` and personal weather settings. Your VPS may have a different list in its own personal config. See [local server debugging](../development.md#local-server-with-physical-clocks).
 
@@ -114,9 +114,9 @@ Network errors, HTTP 429 and 5xx retry with bounded exponential backoff inside o
 
 ```sh
 make check
-make weather-check
+make server-check
 make clock-check APP=weather-current LOCAL_CONFIG=
 make clock-check APP=weather-forecast LOCAL_CONFIG=
 ```
 
-`weather-check` runs an isolated AWTRIX and a local Open-Meteo-shaped HTTP fixture. It exercises the actual provider and both Berry screens, including initial/fresh/stale/unsupported-data states and forecast page rotation. It does not require an API key, internet weather access or physical hardware. CI runs the same integration plus Go tests for retries, timeout, null values, units and DST dates.
+`server-check` runs an isolated AWTRIX and a local Open-Meteo-shaped HTTP fixture. It exercises server data processing and both Berry screens, including initial/fresh/stale/unsupported-data states and forecast page rotation. It does not require an API key, internet weather access or physical hardware. CI runs the same integration plus Go tests for retries, timeout, null values, units and DST dates.
