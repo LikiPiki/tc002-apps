@@ -34,10 +34,68 @@ Run these commands from the repository root:
 | `make dev-check` | Start AWTRIX, run the worker, and perform an HTTP smoke check |
 | `make dev-logs` | Follow AWTRIX logs |
 | `make dev-down` | Stop the environment without deleting data |
+| `make lan [SERVICE=weather-provider]` | Build/start a local server that publishes to the physical clock |
+| `make lan-logs [SERVICE=...]` | Follow that server's logs |
+| `make lan-once [SERVICE=...]` | Fetch and publish once from a disposable container |
+| `make lan-restart [SERVICE=...]` | Restart the local server after config changes |
+| `make lan-doctor` | Diagnose the physical clock from the container network |
+| `make lan-down` | Stop the local LAN server project |
 
 Go checks require Go 1.24+. The containerized development environment only requires Docker with Compose v2 supporting `up --wait`.
 
 Make commands also require Make and a POSIX shell; use Linux, macOS, or WSL. `make docker-save` requires `gzip`. See the [command reference](commands.md) for Go flags and environment variables, and [CONTRIBUTING.md](../CONTRIBUTING.md) for adding apps.
+
+## Local server with physical clocks
+
+Use this mode when your computer and TC002 share a reachable LAN and you want to debug the server against the real display. `dev/compose.lan.yaml` reuses the production server definitions with local image tags and `restart: "no"`. It runs the weather provider by default; status-provider and worker are selected explicitly with `SERVICE`.
+
+The containers read `configs/config.toml` and your `configs/config.local.toml`, including the real clock address and weather location. For example:
+
+```toml
+[clock]
+url = "http://192.168.1.50"
+
+[server.weather]
+latitude = 59.9386
+longitude = 30.3141
+label = "SPB"
+timezone = "Europe/Moscow"
+```
+
+Install the weather screens once, then start the local service:
+
+```sh
+make clock-deploy APP=weather-current
+make clock-deploy APP=weather-forecast
+make lan-doctor
+make lan
+make lan-logs
+```
+
+The weather provider sends a reading immediately and repeats at `server.weather.interval`. `make lan` starts it in the background, so stopping the log command with Ctrl-C leaves the service running. Use `make lan-down` to stop it. No inbound port needs publishing: the provider calls Open-Meteo and the clock's HTTP API through normal outbound Docker networking.
+
+For a fast edit/test loop:
+
+```sh
+make lan-once                         # Publish now instead of waiting for the interval
+make lan                             # Rebuild/recreate after changing Go code
+make lan-restart                     # Reload changes to the mounted TOML files
+make clock-deploy APP=weather-current # Update Berry independently
+make clock-show APP=weather-current
+```
+
+`AWTRIX_URL=http://<clock-address> make lan` overrides the config target. Apply the same override to `lan-doctor` and `lan-once`. Changes to container environment variables need `make lan` to recreate the container; `lan-restart` reloads only mounted config. `CONFIG` and `LOCAL_CONFIG` may select other files under `configs/`, which is mounted read-only into `/app/configs`. Leave `AWTRIX_URL` unset when using `[clock] url`.
+
+You can run another server explicitly, for example `make lan SERVICE=status-provider` after configuring `server.status.url`. The `tc002-lan` project has its own containers/network and local image tags. `make lan-down` removes this project's containers and network.
+
+For IDE breakpoints or native Go debugging, run `go run ./apps/server/cmd/weather-provider` directly from the checkout. It uses the same personal config and physical-clock target. Stop the containerized copy with `make lan-down` first so only one provider publishes the weather.
+
+### LAN troubleshooting
+
+- **Cannot reach the clock:** run `make lan-doctor`. If the host can reach its IP but the container cannot, check Docker/VM routing and the host VPN. Use the LAN address of the clock rather than `localhost`.
+- **Weather does not change after an edit:** use `make lan-once` for an immediate request, `make lan` after Go changes, or `make lan-restart` after config changes.
+- **Clock reports a missing app:** install both weather screens or select the installed consumers in `server.weather.screens`.
+- **Data arrives but the display is dark:** the headless display-policy service still controls power according to the configured schedule.
 
 ## Virtual clock
 

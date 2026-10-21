@@ -62,6 +62,8 @@ The clock's configured HTTP address must be reachable from the VPS. If it is on 
 
 For the regular dev clock, deploy the screens to the local instance and run `docker compose -p tc002-dev -f dev/compose.yaml run --rm --build weather-provider --once`. This container reads your configured location and overrides only the clock URL with the internal virtual-clock address.
 
+For a local server connected to the physical clock on your LAN, use `make lan`, `make lan-logs`, `make lan-once`, and `make lan-down`. This mode reads the real `[clock] url` and personal weather settings. See [local server debugging](../development.md#local-server-with-physical-clocks).
+
 ## Contract and freshness
 
 The producer writes the same versioned object to each selected consumer using `PATCH /api/v1/apps/<name>/data`:

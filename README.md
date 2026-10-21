@@ -91,6 +91,7 @@ Generated locally (not committed):
 | I want to... | Start here | First step |
 | --- | --- | --- |
 | Try it without a clock | [Local development](docs/development.md) | After cloning, run `make dev-check` and open http://localhost:8080 |
+| Debug a local server with my physical clock | [LAN development](docs/development.md#local-server-with-physical-clocks) | Set the clock IP/location in personal config, then run `make lan` and `make lan-logs` |
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
 | Process data on my VPS | [Server apps](apps/server/README.md) | Add `apps/server/cmd/<name>/main.go` |

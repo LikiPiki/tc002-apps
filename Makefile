@@ -1,4 +1,6 @@
 DEV_COMPOSE = docker compose -p tc002-dev -f dev/compose.yaml
+LAN_COMPOSE = docker compose -p tc002-lan -f dev/compose.lan.yaml
+SERVICE ?= weather-provider
 TEXT ?= Hello from local Go
 CONFIG ?= configs/config.toml
 LOCAL_CONFIG ?= configs/config.local.toml
@@ -30,6 +32,12 @@ help:
 		'make dev-check      Build/start AWTRIX and send a smoke notification' \
 		'make dev-logs       Follow AWTRIX logs' \
 		'make dev-down       Stop dev environment, preserving data' \
+		'make lan            Build/start a local server for the physical clock (SERVICE=weather-provider)' \
+		'make lan-logs       Follow local server logs' \
+		'make lan-once       Fetch/publish once from a local container' \
+		'make lan-restart    Reload local server config' \
+		'make lan-doctor     Diagnose the physical clock from the container network' \
+		'make lan-down       Stop local LAN servers' \
 		'make clock-list     Show target and selected Berry apps' \
 		'make clock-validate Validate clock settings offline' \
 		'make clock-deploy   Upload Berry apps (APP=<name> selects one)' \
@@ -119,3 +127,23 @@ dev-notify:
 dev-check: dev
 	$(DEV_COMPOSE) run --rm --build worker --once
 	$(DEV_COMPOSE) run --rm --build clockctl --text 'Local integration check passed'
+
+.PHONY: lan lan-logs lan-once lan-restart lan-doctor lan-down
+
+lan:
+	$(LAN_COMPOSE) up -d --build --wait "$(SERVICE)"
+
+lan-logs:
+	$(LAN_COMPOSE) logs -f --tail=100 "$(SERVICE)"
+
+lan-once:
+	$(LAN_COMPOSE) run --rm --build --no-deps "$(SERVICE)" --once
+
+lan-restart:
+	$(LAN_COMPOSE) restart "$(SERVICE)"
+
+lan-doctor:
+	$(LAN_COMPOSE) run --rm --build --no-deps clockctl doctor
+
+lan-down:
+	$(LAN_COMPOSE) --profile '*' down

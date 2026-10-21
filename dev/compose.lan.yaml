@@ -1,0 +1,52 @@
+# Local server processes publishing to a physical clock on the same LAN.
+x-project-environment: &project-environment
+  AWTRIX_URL: ${AWTRIX_URL:-}
+  TC002_CONFIG: ${CONFIG:-configs/config.toml}
+  TC002_LOCAL_CONFIG: ${LOCAL_CONFIG-configs/config.local.toml}
+
+services:
+  weather-provider:
+    extends:
+      file: ../deploy/compose.yaml
+      service: weather-provider
+    image: tc002-apps/server/weather-provider:lan
+    restart: "no"
+    environment: *project-environment
+
+  status-provider:
+    profiles: [status]
+    extends:
+      file: ../deploy/compose.yaml
+      service: status-provider
+    image: tc002-apps/server/status-provider:lan
+    restart: "no"
+    environment: *project-environment
+
+  worker:
+    profiles: [worker]
+    extends:
+      file: ../deploy/compose.yaml
+      service: worker
+    image: tc002-apps/server/worker:lan
+    restart: "no"
+    environment: *project-environment
+
+  clockctl:
+    profiles: [tools]
+    build:
+      context: ..
+      dockerfile: apps/tools/Dockerfile
+      args:
+        APP: clockctl
+    environment: *project-environment
+    volumes:
+      - type: bind
+        source: ../configs
+        target: /app/configs
+        read_only: true
+        bind:
+          create_host_path: false
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
