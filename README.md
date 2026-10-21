@@ -7,6 +7,7 @@ Apps for Ulanzi TC002 running AWTRIX NG, with Go services for processing data an
 This repository is a small toolkit with autonomous clock apps, weather and HTTP health integrations:
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
+- A list of clock profile files can assign different screen sets/settings to any number of devices; unreachable/non-AWTRIX targets are skipped with warnings. One VPS serves the configured profiles with common data sources. See [clock profiles](docs/configuration.md#different-clock-configurations-from-the-main-config).
 - `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
 - `status-provider` checks an HTTP health endpoint and publishes to the `service-status` screen with explicit data expiry. See [setup and contract](docs/integrations/service-status.md).
 - `weather-provider` fetches Open-Meteo current conditions and three-day forecasts for two separate screens. It can also print weather directly on the VPS. See [weather setup](docs/integrations/weather.md).
@@ -170,7 +171,7 @@ This selection applies to `make build`, `make docker-build`, and `make docker-sa
 
 ```sh
 cp configs/config.local.toml.example configs/config.local.toml
-# Set [clock] url in configs/config.local.toml.
+# Set [clock] urls in configs/config.local.toml.
 make clock-list
 make clock-deploy          # Apps selected by category in TOML
 make clock-deploy KIND=services

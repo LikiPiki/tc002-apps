@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/LikiPiki/tc002-apps/internal/clocks"
 	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
@@ -39,7 +41,9 @@ func loadTargetConfig(flags *flag.FlagSet, base, personal, explicitURL string) (
 		return config, err
 	}
 	if explicitURL != "" {
-		config.Clock.URL = explicitURL
+		if err := config.Clock.OverrideTarget(explicitURL); err != nil {
+			return config, err
+		}
 	}
 
 	return config, nil
@@ -60,4 +64,36 @@ func printJSON(value any) error {
 	encoder.SetIndent("", "  ")
 
 	return encoder.Encode(value)
+}
+
+func finishDelivery(ctx context.Context, report clocks.Report, operation string, jsonOutput bool) error {
+	report.Warn(operation)
+
+	if jsonOutput {
+		if err := printJSON(report); err != nil {
+			return err
+		}
+	} else {
+		for _, result := range report.Results {
+			if result.Profile != "" {
+				fmt.Printf("Profile: %s\n", result.Profile)
+			}
+
+			fmt.Printf("Target: %s [%s]\n", result.Target, result.State)
+			if result.Detail != nil {
+				fmt.Println(result.Detail)
+			}
+			if result.Error != "" {
+				fmt.Printf("  %s\n", result.Error)
+			}
+		}
+
+		fmt.Printf("Clocks: %d/%d completed\n", report.Succeeded(), len(report.Results))
+	}
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	return report.Err()
 }

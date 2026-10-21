@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/internal/clocks"
 	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
@@ -25,7 +27,7 @@ func runInspection(command string, args []string) error {
 	base, personal := projectconfig.Paths(flags)
 	url := flags.String("url", "", "AWTRIX URL (or AWTRIX_URL/config)")
 	jsonOutput := flags.Bool("json", false, "print machine-readable JSON")
-	timeout := flags.Duration("timeout", 15*time.Second, "whole command timeout")
+	timeout := flags.Duration("timeout", 15*time.Second, "timeout per clock")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -39,42 +41,48 @@ func runInspection(command string, args []string) error {
 		return err
 	}
 
-	client, err := awtrix.NewClient(config.Clock.URL)
+	ctx, cancel := commandContext(2 * time.Minute)
+	defer cancel()
+
+	profiles, err := config.Clock.ResolveProfiles()
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := commandContext(*timeout)
-	defer cancel()
-
-	result := inspectTarget(ctx, client, config.Clock.URL, command == "doctor")
-	if *jsonOutput {
-		if err := printJSON(result); err != nil {
-			return err
-		}
-	} else {
-		fmt.Printf("Target: %s\nActive app: %s\nBerry running: %v\n",
-			result.Target, result.Device.CurrentApp, result.Device.ScriptingRunning)
-		if command == "doctor" {
-			fmt.Printf("Display: %dx%d\nAtomic updates: %v\n",
-				result.Width, result.Height, result.Capabilities["scriptUpdates"])
+	report, err := clocks.RunProfiles(ctx, profiles, *timeout, func(ctx context.Context, target clocks.Target, profile projectconfig.ClockProfile) (any, error) {
+		result := inspectTarget(ctx, target.Client, target.URL, command == "doctor")
+		if len(result.Problems) > 0 {
+			return result, fmt.Errorf("%s found %d problem(s)", command, len(result.Problems))
 		}
 
-		for _, app := range result.Apps {
-			fmt.Printf("  %s (%s): enabled=%v headless=%v on-demand=%v error=%s\n",
-				app.Name, app.Origin, app.Enabled, app.Headless, app.OnDemand, app.Error)
-		}
-
-		for _, problem := range result.Problems {
-			fmt.Printf("Problem: %s\n", problem)
-		}
+		return result, nil
+	})
+	if err != nil {
+		return err
 	}
 
-	if len(result.Problems) > 0 {
-		return fmt.Errorf("%s found %d problem(s)", command, len(result.Problems))
+	return finishDelivery(ctx, report, command, *jsonOutput)
+}
+
+func (result inspection) String() string {
+	var output strings.Builder
+	fmt.Fprintf(&output, "Active app: %s\nBerry running: %v\n",
+		result.Device.CurrentApp, result.Device.ScriptingRunning)
+
+	if result.Capabilities != nil {
+		fmt.Fprintf(&output, "Display: %dx%d\nAtomic updates: %v\n",
+			result.Width, result.Height, result.Capabilities["scriptUpdates"])
 	}
 
-	return nil
+	for _, app := range result.Apps {
+		fmt.Fprintf(&output, "  %s (%s): enabled=%v headless=%v on-demand=%v error=%s\n",
+			app.Name, app.Origin, app.Enabled, app.Headless, app.OnDemand, app.Error)
+	}
+	for _, problem := range result.Problems {
+		fmt.Fprintf(&output, "Problem: %s\n", problem)
+	}
+
+	return output.String()
 }
 
 func inspectTarget(ctx context.Context, client *awtrix.Client, target string, doctor bool) inspection {

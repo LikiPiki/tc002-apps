@@ -20,11 +20,14 @@ type ClockDeploy struct {
 }
 
 type ClockConfig struct {
-	URL      string
-	Deploy   ClockDeploy
-	Screens  AppSettings
-	Services AppSettings
-	OnDemand AppSettings
+	URL         string
+	URLs        []string
+	Profiles    []string
+	ProfileName string
+	Deploy      ClockDeploy
+	Screens     AppSettings
+	Services    AppSettings
+	OnDemand    AppSettings
 }
 
 type Config struct {
@@ -93,17 +96,7 @@ func Load(base, personal string) (Config, error) {
 		}
 
 		var fields struct {
-			Clock struct {
-				URL    *string `toml:"url"`
-				Deploy struct {
-					Screens  *[]string `toml:"screens"`
-					Services *[]string `toml:"services"`
-					OnDemand *[]string `toml:"on_demand"`
-				} `toml:"deploy"`
-				Screens  AppSettings `toml:"screens"`
-				Services AppSettings `toml:"services"`
-				OnDemand AppSettings `toml:"on_demand"`
-			} `toml:"clock"`
+			Clock  clockOverrides `toml:"clock"`
 			Server struct {
 				Apps   *[]string `toml:"apps"`
 				Worker struct {
@@ -123,33 +116,8 @@ func Load(base, personal string) (Config, error) {
 			return c, fmt.Errorf("%s: %w", path, err)
 		}
 
-		if fields.Clock.URL != nil {
-			c.Clock.URL = *fields.Clock.URL
-		}
-
-		for _, field := range []struct {
-			src *[]string
-			dst *[]string
-		}{
-			{fields.Clock.Deploy.Screens, &c.Clock.Deploy.Screens},
-			{fields.Clock.Deploy.Services, &c.Clock.Deploy.Services},
-			{fields.Clock.Deploy.OnDemand, &c.Clock.Deploy.OnDemand},
-		} {
-			if field.src == nil {
-				continue
-			}
-			*field.dst = selection(*field.src)
-		}
-
-		for _, field := range []struct {
-			src AppSettings
-			dst AppSettings
-		}{
-			{fields.Clock.Screens, c.Clock.Screens},
-			{fields.Clock.Services, c.Clock.Services},
-			{fields.Clock.OnDemand, c.Clock.OnDemand},
-		} {
-			mergeSettings(field.dst, field.src)
+		if err := fields.Clock.apply(&c.Clock, path); err != nil {
+			return c, err
 		}
 
 		if fields.Server.Apps != nil {

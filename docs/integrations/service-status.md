@@ -6,7 +6,7 @@ A complete HTTP health integration: a VPS provider checks one endpoint and updat
 
 - Producer: `apps/server/cmd/status-provider`.
 - Consumer: `apps/clock/screens/service-status/main.be`.
-- Delivery: `PATCH /api/v1/apps/<server.status.app>/data` at `[clock] url`.
+- Delivery: `PATCH /api/v1/apps/<server.status.app>/data` on each device in `[clock] urls`.
 - The provider owns health data only. It never changes display power or the active app.
 - The display policy remains the sole automatic power controller.
 
@@ -16,7 +16,7 @@ Configure the clock URL and health endpoint in `configs/config.local.toml`:
 
 ```toml
 [clock]
-url = "http://192.168.1.50"
+urls = ["192.168.1.50", "192.168.1.51"]
 
 [server.status]
 url = "https://example.com/health"
@@ -63,7 +63,7 @@ The consumer initially shows `WAIT / NO DATA`, green for fresh `UP`, red for fre
 
 Defaults: `interval = "30s"`, `timeout = "5s"`, `ttl = "90s"`, `attempts = 3`. The interval starts after each publication. TTL must exceed interval + probe timeout. Durations are bounded to 1 second through 24 hours; attempts to 1-5. Network errors/5xx retry within one total timeout using bounded exponential backoff. 4xx do not retry.
 
-Publication failures are logged and retried at the next interval, so an unreachable producer/device connection naturally makes the display stale. `--once` exits nonzero if publication fails. A monitored service being down is a valid reading, not a provider failure.
+The service probes its health endpoint once per cycle, then identifies and publishes to every configured AWTRIX clock. Unreachable/non-clock addresses are skipped with warnings and checked again next cycle; other clocks continue updating. `--once` exits nonzero only if no clock was updated (or the source operation failed). A monitored service being down is a valid reading, not a provider failure.
 
 ## End-to-end verification
 

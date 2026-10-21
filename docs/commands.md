@@ -11,7 +11,7 @@ clockctl status --url http://192.168.1.50 --json
 clockctl deploy --dry-run --json
 ```
 
-`doctor` checks device/API access, scripting, installed app errors, atomic updates and frame dimensions. `status` reports device and installed app state. Both return nonzero on diagnosed problems. `--json` is also available for catalog `list`, offline `validate`, and deployment (including `--dry-run`); diagnostics go to stderr so stdout remains parseable.
+`doctor` checks device/API access, scripting, installed app errors, atomic updates and frame dimensions. `status` reports device and installed app state. Both inspect every configured clock independently. Failed or unrecognized targets produce warnings; the command exits nonzero if no clock succeeds. `--json` returns a `results` array of profile/target/state/error/detail records, also available for deployment (including `--dry-run`). Catalog `list` and offline `validate` return a `profiles` array containing targets, selected apps and validated counts. Diagnostics go to stderr so stdout remains parseable.
 
 ## Offline validation
 
@@ -21,7 +21,9 @@ Run `make clock-validate` or `clockctl validate` to validate the selected clock 
 
 `clockctl deploy --dry-run` reads current sources/settings and prints changes without writing. Normal deployment skips unchanged values, uses compare-and-swap source updates, saves a private recovery record in `dist/deploy/`, and observes enabled scripts for 1.5 seconds. Use `--backup <new-file>` to choose the recovery path, `--observe 3s` to change the observation window, and `--timeout 2m` to bound the entire command. Ctrl-C and SIGTERM cancel in-flight requests. Disabled apps remain disabled.
 
-`clockctl rollback --backup dist/deploy/<record>.json` restores previous sources, declared settings and enabled state on the same target. Recovery stops if a source differs from both the before/after record. Newly installed apps are disabled rather than deleted, because the device has no atomic delete operation. Recovery is explicit, sequential and may itself be partial. Settings writes have no compare-and-swap API; avoid concurrent settings edits during deployment or recovery. Records capture declared configuration, not arbitrary app storage or external side effects.
+Each clock gets its profile's selected apps/settings and its own plan, phase report and recovery file. The main config's `clock.profiles` list can refer to any number of files; see [clock profiles](configuration.md#different-clock-configurations-from-the-main-config). With multiple targets an explicit `--backup recover.json` produces `recover.clock-1.json`, `recover.clock-2.json`, etc. A failure stops the app batch for that clock while the other clocks continue.
+
+`clockctl rollback --url http://<clock> --backup dist/deploy/<record>.json` restores previous sources, declared settings and enabled state on that one target. When the config lists multiple clocks, select a single one with `--url` for recovery. Recovery stops if a source differs from both the before/after record. Newly installed apps are disabled rather than deleted, because the device has no atomic delete operation. Recovery is explicit, sequential and may itself be partial. Settings writes have no compare-and-swap API; avoid concurrent settings edits during deployment or recovery. Records capture declared configuration, not arbitrary app storage or external side effects.
 
 Run commands from the repository root. Utility commands live in `apps/tools/`; independent VPS programs live in `apps/server/`. Both can run natively or in their separate Docker images. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
 
@@ -30,7 +32,7 @@ Both commands read `configs/config.toml` and optional `configs/config.local.toml
 ## clockctl notifications
 
 ```sh
-# Use clock.url from the project config:
+# Send to all clock.urls from the project config:
 go run ./apps/tools/cmd/clockctl --text 'Hello TC002'
 # Or explicitly override the URL:
 go run ./apps/tools/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
@@ -38,16 +40,16 @@ go run ./apps/tools/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--url` | `AWTRIX_URL`, then TOML `clock.url` | Absolute HTTP/HTTPS base URL |
+| `--url` | `AWTRIX_URL`, then TOML `clock.urls` (or legacy `clock.url`) | Single-clock override; IP/hostname or HTTP(S) URL |
 | `--text` | `Hello from Go` | Notification text |
 | `--config` | `configs/config.toml` | Shared config; default path can use `TC002_CONFIG` |
 | `--local-config` | `configs/config.local.toml` | Optional overrides; empty disables them; default path can use `TC002_LOCAL_CONFIG` |
 
-The client posts to `/api/v1/notifications` with a 10-second timeout. Invalid URLs, failed requests, and non-2xx responses produce a nonzero exit status. Authentication is not implemented yet.
+The client identifies each AWTRIX endpoint, then posts to `/api/v1/notifications`, with a 10-second budget per clock. Invalid/unreachable/non-clock targets are skipped with warnings. Any successful target makes partial delivery successful; if all fail, the command exits nonzero. Authentication is not implemented yet.
 
 HTTP failures include the method, API path (including the app name for script operations), status, and AWTRIX's error code/message/field when present. Plain-text or malformed responses use a bounded body excerpt. Transport and JSON-decoding failures also include the operation. For example: `PUT /api/v1/apps/script-update/demo: AWTRIX returned 422 ... (validationFailed): ...`. The same error handling is used for notifications and script operations.
 
-For a standalone Docker tool, set `clock.url` in your personal TOML and run:
+For a standalone Docker tool, set `clock.urls` in your personal TOML and run:
 
 ```sh
 make docker-build GROUP=tools
@@ -92,7 +94,7 @@ go run ./apps/tools/cmd/clockctl server-list # Compatibility alias: server comma
 
 Deployment reads all selected sources before writing to the device. It requires running Berry scripting and the `scriptUpdates` capability. It reads the exact previous source, then uses `/api/v1/apps/script-update/{name}` with `expected_source` (or `null` for a new app). AWTRIX preserves the previous script if the new source fails compilation or setup, and rejects concurrent changes with HTTP 409. There is no unsafe replacement fallback. Update AWTRIX NG if atomic updates are unsupported.
 
-After each upload the command checks the installed script's enabled/error status. It stops on the first failure; earlier successful apps in the batch are not rolled back. Same-name scripts preserve AWTRIX's saved app data. Unselected apps are not deleted. Errors in later `draw()` or callbacks still require runtime checks.
+After each upload the command checks the installed script's enabled/error status. It stops on the first failure within that clock's app batch; other clocks continue and earlier successful apps are not rolled back. Same-name scripts preserve AWTRIX's saved app data. Unselected apps are not deleted. Errors in later `draw()` or callbacks still require runtime checks.
 
 Every deployment prints a per-app report for source, settings, and verification. A partial failure distinguishes completed apps, the failed phase, and apps not attempted yet. For example, `source=updated settings=unconfirmed verification=not-run` means the new source was confirmed but settings were not. If AWTRIX confirms that settings were saved but app restart failed, the report uses `settings=applied verification=failed FAILED at restart`. A timeout is marked unconfirmed rather than implying that no change occurred. No batch rollback is attempted; inspect unconfirmed device state before retrying.
 

@@ -53,7 +53,7 @@ The containers read `configs/config.toml` and your `configs/config.local.toml`, 
 
 ```toml
 [clock]
-url = "http://192.168.1.50"
+urls = ["192.168.1.50", "192.168.1.51"]
 
 [server.weather]
 latitude = 59.9386
@@ -61,6 +61,8 @@ longitude = 30.3141
 label = "SPB"
 timezone = "Europe/Moscow"
 ```
+
+For different screen sets, replace `urls` with `profiles = ["clocks/main.local.toml", "clocks/second.local.toml", ...]`. The same `make lan` process reads all referenced profiles from the mounted config directory; weather remains common while delivery follows each profile's selected screens. Profile paths are resolved relative to the config that lists them. See [clock profiles](configuration.md#different-clock-configurations-from-the-main-config).
 
 Install the weather screens once, then start the local service:
 
@@ -84,7 +86,7 @@ make clock-deploy APP=weather-current # Update Berry independently
 make clock-show APP=weather-current
 ```
 
-`AWTRIX_URL=http://<clock-address> make lan` overrides the config target. Apply the same override to `lan-doctor` and `lan-once`. Changes to container environment variables need `make lan` to recreate the container; `lan-restart` reloads only mounted config. `CONFIG` and `LOCAL_CONFIG` may select other files under `configs/`, which is mounted read-only into `/app/configs`. Leave `AWTRIX_URL` unset when using `[clock] url`.
+`AWTRIX_URL=http://<clock-address> make lan` selects one clock instead of the configured list. Apply the same override to `lan-doctor` and `lan-once`. Changes to container environment variables need `make lan` to recreate the container; `lan-restart` reloads only mounted config. `CONFIG` and `LOCAL_CONFIG` may select other files under `configs/`, which is mounted read-only into `/app/configs`. Leave `AWTRIX_URL` unset to use `[clock] urls`. Unreachable/non-AWTRIX addresses are warned about and skipped independently on every cycle.
 
 You can run another server explicitly, for example `make lan SERVICE=status-provider` after configuring `server.status.url`. The `tc002-lan` project has its own containers/network and local image tags. `make lan-down` removes this project's containers and network.
 

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/server/internal/weatherprovider"
-	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/internal/clocks"
 	"github.com/LikiPiki/tc002-apps/internal/config"
 )
 
@@ -63,22 +63,46 @@ func run(args []string) error {
 	}
 
 	if target := os.Getenv("AWTRIX_URL"); target != "" {
-		project.Clock.URL = target
+		if err := project.Clock.OverrideTarget(target); err != nil {
+			return err
+		}
 	}
 
-	client, err := awtrix.NewClient(project.Clock.URL)
+	profiles, err := project.Clock.ResolveProfiles()
 	if err != nil {
 		return err
 	}
 
-	return serve(ctx, provider, client, settings, *once)
+	return serve(ctx, provider, profiles, settings, *once)
 }
 
-func serve(ctx context.Context, provider *weatherprovider.Provider, client *awtrix.Client, settings weatherprovider.Settings, once bool) error {
+type weatherSource interface {
+	Fetch(context.Context) (weatherprovider.Reading, error)
+}
+
+func serve(ctx context.Context, provider weatherSource, profiles []config.ClockProfile, settings weatherprovider.Settings, once bool) error {
+	var audience []config.ClockProfile
+	for _, profile := range profiles {
+		if len(settingsForClock(settings, profile.Clock).Screens) > 0 && len(profile.Clock.Targets()) > 0 {
+			audience = append(audience, profile)
+		}
+	}
+	if len(audience) == 0 {
+		return fmt.Errorf("no clocks with selected weather screens configured")
+	}
+
 	for {
 		reading, err := provider.Fetch(ctx)
+		var delivery clocks.Report
+
 		if err == nil {
-			err = weatherprovider.Publish(ctx, client, settings, reading)
+			delivery, err = clocks.RunProfiles(ctx, audience, clocks.DefaultTimeout, func(ctx context.Context, target clocks.Target, profile config.ClockProfile) (any, error) {
+				return nil, weatherprovider.Publish(ctx, target.Client, settingsForClock(settings, profile.Clock), reading)
+			})
+			delivery.Warn("weather publication")
+			if err == nil {
+				err = delivery.Err()
+			}
 		}
 
 		if ctx.Err() != nil {
@@ -96,6 +120,8 @@ func serve(ctx context.Context, provider *weatherprovider.Provider, client *awtr
 				"place", reading.Label,
 				"temperature_c", reading.Current.TemperatureC,
 				"condition", reading.Current.Condition,
+				"clocks_updated", delivery.Succeeded(),
+				"clocks_total", len(delivery.Results),
 				"screens", settings.Screens)
 		}
 
@@ -109,4 +135,17 @@ func serve(ctx context.Context, provider *weatherprovider.Provider, client *awtr
 		case <-time.After(settings.Interval):
 		}
 	}
+}
+
+func settingsForClock(settings weatherprovider.Settings, clock config.ClockConfig) weatherprovider.Settings {
+	selected := settings
+	selected.Screens = nil
+
+	for _, name := range settings.Screens {
+		if clock.ScreenSelected(name) {
+			selected.Screens = append(selected.Screens, name)
+		}
+	}
+
+	return selected
 }

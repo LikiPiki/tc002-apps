@@ -1,0 +1,8 @@
+# Copy to second.local.toml and list it in the main config's clock.profiles.
+[clock]
+urls = ["192.168.1.51"]
+
+[clock.deploy]
+screens = ["weather-current", "seagull"]
+services = []
+on_demand = []

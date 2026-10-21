@@ -5,13 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockapps"
 	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockcheck"
-	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockdeploy"
 	"github.com/LikiPiki/tc002-apps/internal/awtrix"
 	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
@@ -64,189 +62,20 @@ func runScripts(command string, args []string) error {
 		return err
 	}
 
-	client, err := awtrix.NewClient(config.Clock.URL)
-	if err != nil {
-		return err
+	options := scriptOptions{
+		App:      *app,
+		Kind:     *kind,
+		AppsDir:  *appsDir,
+		Backup:   *backup,
+		Duration: *duration,
+		Timeout:  *timeout,
+		Observe:  *observe,
+		DryRun:   *dryRun,
+		JSON:     *jsonOutput,
+		All:      *all,
 	}
 
-	if !*jsonOutput {
-		fmt.Printf("Target: %s\n", config.Clock.URL)
-	}
-
-	if command == "check" {
-		if err := clockcheck.RequireSandbox(ctx, client); err != nil {
-			return err
-		}
-	}
-
-	if command == "rollback" {
-		if *backup == "" {
-			return fmt.Errorf("rollback requires --backup")
-		}
-
-		plan, err := clockdeploy.LoadPlan(*backup, config.Clock.URL)
-		if err != nil {
-			return err
-		}
-
-		return plan.Rollback(ctx, client)
-	}
-
-	if command == "show" || command == "start" || command == "stop" {
-		if *app == "" {
-			return fmt.Errorf("%s requires APP=<name>", command)
-		}
-		if err := client.CheckScripting(ctx); err != nil {
-			return err
-		}
-
-		info, err := client.Script(ctx, *app)
-		if err != nil {
-			return err
-		}
-
-		if command == "stop" {
-			if err := client.StopOnDemand(ctx, *app); err != nil {
-				return err
-			}
-
-			fmt.Printf("Stopped %s\n", *app)
-			return nil
-		}
-
-		if (command == "start") != info.OnDemand {
-			return fmt.Errorf("use clock-start for on-demand apps and clock-show for rotating screens")
-		}
-		if err := client.ShowScript(ctx, *app); err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(300 * time.Millisecond):
-		}
-
-		if err := client.CheckScript(ctx, *app); err != nil {
-			return err
-		}
-
-		fmt.Printf("Showing %s\n", *app)
-		return nil
-	}
-
-	if *all {
-		config.Clock.Deploy = projectconfig.ClockDeploy{}
-	}
-
-	scripts, err := clockapps.Select(*appsDir, config.Clock, *app, *kind)
-	if err != nil {
-		return err
-	}
-
-	if len(scripts) == 0 {
-		if *jsonOutput {
-			return printJSON(map[string]any{"target": config.Clock.URL, "apps": []string{}})
-		}
-
-		fmt.Println("No clock apps selected")
-		return nil
-	}
-
-	if command == "validate" {
-		if *jsonOutput {
-			return printJSON(map[string]any{"target": config.Clock.URL, "validated": len(scripts)})
-		}
-
-		fmt.Printf("Validated %d clock apps\n", len(scripts))
-		return nil
-	}
-
-	if command == "list" && *jsonOutput {
-		catalog := make([]map[string]string, 0, len(scripts))
-		for _, script := range scripts {
-			catalog = append(catalog, map[string]string{"name": script.Name, "kind": script.Kind, "path": script.Path})
-		}
-
-		return printJSON(map[string]any{"target": config.Clock.URL, "apps": catalog})
-	}
-
-	if command != "list" {
-		if err := client.CheckScripting(ctx); err != nil {
-			return err
-		}
-	}
-
-	if command == "deploy" {
-		plan, err := clockdeploy.Prepare(ctx, client, config.Clock.URL, scripts)
-		if err != nil {
-			return err
-		}
-
-		if !*jsonOutput {
-			fmt.Print(plan.String())
-		}
-
-		if *dryRun {
-			if *jsonOutput {
-				return printJSON(plan)
-			}
-
-			return nil
-		}
-
-		if *backup == "" {
-			*backup = filepath.Join("dist", "deploy", time.Now().UTC().Format("20060102T150405.000000000")+".json")
-		}
-		if err := os.MkdirAll(filepath.Dir(*backup), 0o700); err != nil {
-			return err
-		}
-		if err := plan.Save(*backup); err != nil {
-			return err
-		}
-		if !*jsonOutput {
-			fmt.Printf("Recovery record: %s\n", *backup)
-		}
-
-		report, err := plan.Apply(ctx, client, *observe)
-		if *jsonOutput {
-			if outputErr := printJSON(map[string]any{"plan": plan, "report": report, "backup": *backup}); outputErr != nil {
-				return outputErr
-			}
-		} else {
-			fmt.Print(report.String())
-		}
-
-		return err
-	}
-
-	for _, script := range scripts {
-		if command == "list" {
-			fmt.Printf("%s/%s: %s\n", script.Kind, script.Name, script.Path)
-			continue
-		}
-
-		plan, err := clockdeploy.Prepare(ctx, client, config.Clock.URL, []clockapps.Script{script})
-		if err != nil {
-			return err
-		}
-
-		report, err := plan.Apply(ctx, client, 0)
-		if err != nil {
-			fmt.Print(report.String())
-			return err
-		}
-
-		if command == "check" {
-			if err := checkScript(ctx, client, script, *duration); err != nil {
-				return fmt.Errorf("check %s: %w", script.Name, err)
-			}
-		} else {
-			fmt.Printf("Installed %s/%s\n", script.Kind, script.Name)
-		}
-	}
-
-	return nil
+	return dispatchScripts(ctx, command, config.Clock, options)
 }
 
 func checkScript(parent context.Context, client *awtrix.Client, script clockapps.Script, duration time.Duration) error {

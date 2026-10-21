@@ -15,7 +15,7 @@ On the VPS:
 git clone https://github.com/LikiPiki/tc002-apps.git
 cd tc002-apps
 cp configs/config.local.toml.example configs/config.local.toml
-# Edit clock.url, server.apps, and server.worker.interval as needed.
+# Edit clock.urls, server.apps, and server.worker.interval as needed.
 sh deploy/deploy.sh worker
 ```
 

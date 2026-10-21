@@ -16,7 +16,7 @@ Add your coordinates to `configs/config.local.toml`. These are an example for ce
 
 ```toml
 [clock]
-url = "http://192.168.1.50"
+urls = ["192.168.1.50", "192.168.1.51"]
 
 [server.weather]
 latitude = 59.9386
@@ -56,13 +56,15 @@ sh deploy/deploy.sh weather-provider
 docker compose -f deploy/compose.yaml logs -f weather-provider
 ```
 
-`screens` names the installed consumers. For a current-only installation, set `screens = ["weather-current"]`. Deployment selections and running Compose services remain independent of the Go build selection. `AWTRIX_URL` can override `[clock] url` when publishing; it is ignored by `--print`.
+`screens` names the installed consumers on each clock. For a current-only installation, set `screens = ["weather-current"]`. One VPS fetches weather once per cycle and sends the same reading to every device in `[clock] urls`. Deployment selections and running Compose services remain independent of the Go build selection. `AWTRIX_URL` selects one target instead of the list when publishing; it is ignored by `--print`.
+
+For different clock screen sets, list any number of profile files under `[clock] profiles` in the main config. Profiles contain only clock settings; weather coordinates, source and polling settings remain common. Delivery automatically intersects `server.weather.screens` with each profile's `clock.deploy.screens`. A profile selecting only `weather-current` receives current-weather data without attempting to write `weather-forecast`. Profiles with no selected weather consumers are skipped entirely. See [clock profiles](../configuration.md#different-clock-configurations-from-the-main-config).
 
 The clock's configured HTTP address must be reachable from the VPS. If it is on your home LAN, provide routing/VPN access between the VPS and that network.
 
 For the regular dev clock, deploy the screens to the local instance and run `docker compose -p tc002-dev -f dev/compose.yaml run --rm --build weather-provider --once`. This container reads your configured location and overrides only the clock URL with the internal virtual-clock address.
 
-For a local server connected to the physical clock on your LAN, use `make lan`, `make lan-logs`, `make lan-once`, and `make lan-down`. This mode reads the real `[clock] url` and personal weather settings. See [local server debugging](../development.md#local-server-with-physical-clocks).
+For a local server connected to physical clocks on your LAN, use `make lan`, `make lan-logs`, `make lan-once`, and `make lan-down`. This mode reads `[clock] urls` and personal weather settings. Your VPS may have a different list in its own personal config. See [local server debugging](../development.md#local-server-with-physical-clocks).
 
 ## Contract and freshness
 
@@ -106,7 +108,7 @@ The shortened example shows one forecast entry; actual readings contain three, s
 
 Before the first reading, screens show `NO DATA`. Expired readings, future timestamps or an unsynchronized device clock show `STALE`. The top-right pixel is green for fresh weather and amber otherwise. Stored readings survive restarts; expiry still applies. Synchronize the VPS and AWTRIX clocks.
 
-Network errors, HTTP 429 and 5xx retry with bounded exponential backoff inside one total timeout. Other HTTP errors and invalid payloads do not retry immediately. Continuous mode logs errors and tries again at the next interval; `--once` and `--print` exit nonzero on failure. Publication attempts every selected screen and reports partial delivery; the next successful update reconciles them.
+Network errors, HTTP 429 and 5xx retry with bounded exponential backoff inside one total source timeout. Other HTTP errors and invalid payloads do not retry immediately. Continuous mode logs errors and tries again at the next interval. Publication identifies every target as AWTRIX first, attempts every selected screen independently per clock and warns about skipped/failed devices. `--once` succeeds if at least one clock receives its screens, and fails if none do or the source fetch fails. `--print` has no device dependency. Previously skipped clocks are retried next cycle.
 
 ## Checks
 

@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/LikiPiki/tc002-apps/internal/awtrix"
 	"github.com/LikiPiki/tc002-apps/internal/buildinfo"
+	"github.com/LikiPiki/tc002-apps/internal/clocks"
 	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
 
@@ -71,12 +72,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	client, err := awtrix.NewClient(config.Clock.URL)
-	if err == nil {
-		ctx, cancel := commandContext(10 * time.Second)
-		defer cancel()
+	ctx, cancel := commandContext(2 * time.Minute)
+	defer cancel()
 
-		err = client.Notify(ctx, *text)
+	profiles, err := config.Clock.ResolveProfiles()
+	if err != nil {
+		slog.Error("invalid clock profiles", "error", err)
+		os.Exit(1)
+	}
+
+	report, err := clocks.RunProfiles(ctx, profiles, clocks.DefaultTimeout, func(ctx context.Context, target clocks.Target, profile projectconfig.ClockProfile) (any, error) {
+		return "Notification sent", target.Client.Notify(ctx, *text)
+	})
+	if err == nil {
+		err = finishDelivery(ctx, report, "notification", false)
 	}
 
 	if err != nil {

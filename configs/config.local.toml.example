@@ -1,6 +1,9 @@
 # Copy to config.local.toml. Only specified fields override shared defaults.
 [clock]
-url = "http://192.168.1.50"
+urls = ["192.168.1.50", "192.168.1.51"]
+# For per-device screen settings, replace urls with:
+# profiles = ["clocks/main.local.toml", "clocks/second.local.toml"]
+# Copy the corresponding files from configs/clocks/*.toml.example first.
 # [clock.deploy]
 # screens = ["cigar", "mackerel"]
 # services = ["display-policy"]

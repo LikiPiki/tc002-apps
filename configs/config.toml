@@ -1,6 +1,6 @@
 # Shared project defaults. Override selected fields in config.local.toml.
 [clock]
-url = "http://localhost:8080"
+urls = ["http://localhost:8080"]
 [clock.deploy]
 screens = ["*"]
 services = ["display-policy"]

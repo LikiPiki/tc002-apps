@@ -1,0 +1,9 @@
+# Copy to main.local.toml and list it in the main config's clock.profiles.
+# Only [clock] settings are accepted here; VPS/weather settings stay global.
+[clock]
+urls = ["192.168.1.50"]
+
+[clock.deploy]
+screens = ["weather-current", "weather-forecast", "cigar", "mackerel", "seagull"]
+services = []
+on_demand = []

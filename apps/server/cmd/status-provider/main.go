@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/server/internal/statusprovider"
-	"github.com/LikiPiki/tc002-apps/internal/awtrix"
+	"github.com/LikiPiki/tc002-apps/internal/clocks"
 	"github.com/LikiPiki/tc002-apps/internal/config"
 )
 
@@ -35,7 +35,9 @@ func run() error {
 		return err
 	}
 	if target := os.Getenv("AWTRIX_URL"); target != "" {
-		project.Clock.URL = target
+		if err := project.Clock.OverrideTarget(target); err != nil {
+			return err
+		}
 	}
 
 	settings, err := statusprovider.Parse(project.Server.Status)
@@ -43,9 +45,19 @@ func run() error {
 		return err
 	}
 
-	client, err := awtrix.NewClient(project.Clock.URL)
+	profiles, err := project.Clock.ResolveProfiles()
 	if err != nil {
 		return err
+	}
+
+	var audience []config.ClockProfile
+	for _, profile := range profiles {
+		if profile.Clock.ScreenSelected(settings.App) && len(profile.Clock.Targets()) > 0 {
+			audience = append(audience, profile)
+		}
+	}
+	if len(audience) == 0 {
+		return fmt.Errorf("no clocks with selected status screens configured")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -60,7 +72,13 @@ func run() error {
 			return nil
 		}
 
-		err = statusprovider.Publish(ctx, client, settings, reading)
+		delivery, err := clocks.RunProfiles(ctx, audience, clocks.DefaultTimeout, func(ctx context.Context, target clocks.Target, profile config.ClockProfile) (any, error) {
+			return nil, statusprovider.Publish(ctx, target.Client, settings, reading)
+		})
+		delivery.Warn("status publication")
+		if err == nil {
+			err = delivery.Err()
+		}
 		if err != nil {
 			if *once {
 				return err
@@ -68,7 +86,12 @@ func run() error {
 
 			slog.Error("status publication failed", "error", err)
 		} else {
-			slog.Info("status published", "state", reading.State, "http_status", reading.HTTPStatus, "latency_ms", reading.LatencyMS)
+			slog.Info("status published",
+				"state", reading.State,
+				"http_status", reading.HTTPStatus,
+				"latency_ms", reading.LatencyMS,
+				"clocks_updated", delivery.Succeeded(),
+				"clocks_total", len(delivery.Results))
 		}
 
 		if *once {

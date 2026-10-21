@@ -12,13 +12,79 @@ configs/config.local.toml.example  Personal override template, committed
 configs/config.local.toml          Optional personal overrides, ignored by Git
 ```
 
+## One server, multiple clocks
+
+Set `[clock] urls` to devices that share one screen configuration. For different screen sets, use the file-based profiles below. A computer and a VPS may use different personal config files and therefore different sets:
+
+```toml
+[clock]
+urls = ["192.168.1.50", "192.168.1.51", "http://clock.example.net:8080"]
+```
+
+Bare IPs/hostnames use HTTP. Full HTTP(S) URLs support ports. The list replaces the shared selection; duplicate addresses are contacted once. Legacy `clock.url` remains supported as a single-device form. Set only one target form per file (`url`, `urls` or `profiles`); personal settings replace the shared form.
+
+Deployment, notifications, show/start/stop, doctor/status and the VPS providers operate on all listed clocks. They verify the AWTRIX device/capabilities API before writing. Unknown endpoints and unreachable addresses are skipped with a warning identifying the target. Device operations run independently, with at most four concurrent targets; one failure does not prevent the others from updating. All targets failing (or an empty list) produces a nonzero exit status, while partial delivery succeeds with warnings.
+
+The weather provider fetches one reading per cycle and publishes it to the configured screens on every reachable clock. HTTP status is also probed once per cycle. Skipped clocks are checked again next cycle. Server delivery has a 10-second budget per clock and identification is limited to three seconds.
+
+Explicit `--url` or `AWTRIX_URL` selects **one clock**, replacing the entire configured set. A matching configured clock retains its profile's screen settings; an unlisted address uses shared clock settings. This also keeps the virtual-clock environment confined to its sandbox target. Config parsing stays offline; `list`/`validate` show selections without probing the devices.
+
+## Different clock configurations from the main config
+
+The main/personal config lists any number of files:
+
+```toml
+[clock]
+profiles = [
+  "clocks/main.local.toml",
+  "clocks/second.local.toml",
+  "clocks/office.local.toml",
+]
+```
+
+References are relative to the file that declares them, so `configs/config.local.toml` resolves these under `configs/clocks/`. Absolute references also work. The list is loaded dynamically; there is no fixed number of profiles or clock addresses in the program. The four-target limit controls concurrent HTTP operations, not the size of the configuration.
+
+Each file contains **only `[clock]` settings**. For example, `main.local.toml`:
+
+```toml
+[clock]
+urls = ["192.168.1.50"]
+
+[clock.deploy]
+screens = ["weather-current", "weather-forecast", "cigar"]
+services = []
+on_demand = []
+```
+
+And `second.local.toml`:
+
+```toml
+[clock]
+urls = ["192.168.1.51"]
+
+[clock.deploy]
+screens = ["weather-current", "seagull"]
+services = []
+on_demand = []
+```
+
+Copy the provided `configs/clocks/*.toml.example` templates to `*.local.toml`. Local profiles are excluded from Git and image build context, but are available through the mounted `configs/` directory. A profile can contain several addresses when those clocks share its settings.
+
+Clock settings inherit shared + personal defaults, then the individual profile overrides them. This includes deployment selections and Berry settings such as `[clock.services.display-policy]`. The profile name in reports comes from its filename (`main.local.toml` → `main`). All selected source files are validated before any clock writes. Unknown fields, missing files, duplicate names, nested profiles and an address assigned to different profiles fail before deployment.
+
+VPS configuration stays in the main config. Profiles cannot override `[server]` or `[tools]`. Weather is fetched once per cycle and remains common to all clocks; each profile receives data only for its selected weather screens. A current-only profile does not get writes to `weather-forecast`. HTTP-status delivery similarly follows whether `service-status` is selected. A profile with no consumers for a provider is left out of that provider's audience.
+
+Use `make clock-list` to preview the profile → address → screen mapping, then `make clock-deploy` to apply all profiles. `APP=...` explicitly overrides the per-profile app selection. To operate on one existing device while retaining its profile settings, pass its address with `--url`/`AWTRIX_URL`. Profiles choose what to upload; existing apps omitted from a new selection are not automatically deleted or disabled.
+
+After changing profile files or adding references, restart long-running providers (`make lan-restart` locally, or restart the VPS Compose service) so they reload the set. Deployment commands read the current files on each invocation.
+
 The shared file is required. Personal settings may be absent. The loader validates TOML syntax, known project fields, and field types, then merges overrides. Semantic checks run only in the relevant consumer: a malformed unused clock URL or worker interval does not stop build selection. The effective clock URL is validated after URL overrides; the effective interval is validated by the worker after an explicit interval override.
 
 ## Shared layout
 
 ```toml
 [clock]
-url = "http://localhost:8080"
+urls = ["http://localhost:8080"]
 
 [clock.deploy]
 screens = ["*"]
@@ -69,7 +135,7 @@ Override only the values you need:
 
 ```toml
 [clock]
-url = "http://192.168.1.50"
+urls = ["192.168.1.50", "192.168.1.51"]
 
 [clock.deploy]
 screens = ["cigar", "mackerel"]
@@ -100,7 +166,7 @@ make build GROUP=tools
 
 Make accepts `CONFIG` and `LOCAL_CONFIG`. Native Go commands accept `--config` and `--local-config`; environment variables `TC002_CONFIG` and `TC002_LOCAL_CONFIG` change their default paths. An explicitly empty personal path disables overrides. `APP` overrides the app selection; `KIND` filters or validates its category.
 
-Clock URL precedence is explicit `--url` > `AWTRIX_URL` > personal TOML > shared TOML. An explicit worker `--interval` overrides TOML. Leave `AWTRIX_URL` unset when relying on config URLs.
+Clock target precedence is explicit single `--url` > single `AWTRIX_URL` > personal TOML list/single URL > shared TOML. An explicit worker `--interval` overrides TOML. Leave `AWTRIX_URL` unset to use the configured set.
 
 ## Docker and checks
 
