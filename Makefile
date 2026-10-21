@@ -20,7 +20,7 @@ help:
 clock-check:
 	sh scripts/check-clock.sh
 
-clock-list clock-deploy clock-show clock-start clock-stop:
+clock-list clock-deploy clock-show clock-start clock-stop clock-validate:
 	go run ./apps/tools/cmd/clockctl $(patsubst clock-%,%,$@) --config "$$CONFIG" --local-config "$$LOCAL_CONFIG" --app "$$APP" --kind "$$KIND"
 
 list-apps:

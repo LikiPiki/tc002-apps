@@ -1,5 +1,9 @@
 # Go command reference
 
+## Offline validation
+
+Run `make clock-validate` or `clockctl validate` to validate the selected clock apps without network requests. This checks lifecycle markers, declared settings, defaults, lengths, select options, numeric bounds, colors and display-policy time semantics before deployment.
+
 Run commands from the repository root. Utility commands live in `apps/tools/`; independent VPS programs live in `apps/server/`. Both can run natively or in their separate Docker images. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
 
 Both commands read `configs/config.toml` and optional `configs/config.local.toml`. See [Project configuration](configuration.md) for the schema, merging, paths, and Docker mounts.

@@ -95,6 +95,10 @@ func runScripts(command string, args []string) error {
 		fmt.Println("No clock apps selected")
 		return nil
 	}
+	if command == "validate" {
+		fmt.Printf("Validated %d clock apps\n", len(scripts))
+		return nil
+	}
 	if command != "list" {
 		if err := client.CheckScripting(context.Background()); err != nil {
 			return err

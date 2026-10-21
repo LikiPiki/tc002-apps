@@ -104,6 +104,9 @@ func prepare(scripts []Script) ([]Script, error) {
 		if err := validateHeader(entry.Kind, source, entry.Settings); err != nil {
 			return nil, fmt.Errorf("%s: %w", entry.Path, err)
 		}
+		if err := validateDomain(*entry); err != nil {
+			return nil, err
+		}
 		entry.Source = source
 	}
 	return scripts, nil
@@ -111,7 +114,6 @@ func prepare(scripts []Script) ([]Script, error) {
 
 func validateHeader(kind string, source []byte, settings map[string]any) error {
 	headless, onDemand := false, false
-	declared := map[string]string{}
 	for _, line := range strings.Split(string(source), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -144,40 +146,10 @@ func validateHeader(kind string, source []byte, settings map[string]any) error {
 				return fmt.Errorf("@ondemand is a flag; omit its value")
 			}
 			onDemand = true
-		case "@config":
-			if len(fields) >= 3 {
-				declared[fields[1]] = fields[2]
-			}
 		}
 	}
 	if (headless && onDemand) || (kind == "services" && !headless) || (kind == "on-demand" && !onDemand) || (kind == "screens" && (headless || onDemand)) || (kind == "services" && onDemand) || (kind == "on-demand" && headless) {
 		return fmt.Errorf("Berry lifecycle markers do not match directory kind %s", kind)
 	}
-	for key, value := range settings {
-		typ, exists := declared[key]
-		if !exists {
-			return fmt.Errorf("setting %q has no @config declaration", key)
-		}
-		valid := false
-		switch typ {
-		case "bool":
-			_, valid = value.(bool)
-		case "text", "select":
-			_, valid = value.(string)
-		case "number", "slider":
-			switch value.(type) {
-			case int, int64, float64:
-				valid = true
-			}
-		case "color":
-			switch value.(type) {
-			case string, int, int64:
-				valid = true
-			}
-		}
-		if !valid {
-			return fmt.Errorf("setting %q must match @config type %s", key, typ)
-		}
-	}
-	return nil
+	return validateSettings(source, settings)
 }

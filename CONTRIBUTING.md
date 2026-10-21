@@ -40,7 +40,7 @@ CI checks all Go packages, builds selected server/tool binaries and images, and 
 
 Run `make clock-check APP=<name>` for an isolated runtime smoke check before uploading to physical hardware. It checks installation and a short period of drawing without changing your regular dev instance. It requires Docker, not a host Go installation. See [runtime checks](docs/development.md#runtime-checks).
 
-Register per-app settings under `clock.<category>.<name>` in TOML (`on_demand` for that category) and declare matching `@config` fields in the Berry header. The generic CLI validates names/basic types and passes settings to AWTRIX; domain validation belongs in the app. Add tests when changing the catalog or lifecycle rules. See [architecture](docs/architecture.md).
+Register per-app settings under `clock.<category>.<name>` in TOML (`on_demand` for that category) and declare matching `@config` fields in the Berry header. `make clock-validate` checks declarations, types, defaults, text lengths, options, numeric bounds and RGB colors without contacting a clock. Numeric values outside declared bounds are rejected locally instead of relying on device clamping; `step` is a UI increment, not a quantization rule. Add app-domain validation in the catalog and retain validation in Berry for settings edited on-device. See [architecture](docs/architecture.md).
 
 ## Before opening a pull request
 
