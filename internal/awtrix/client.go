@@ -97,6 +97,14 @@ func (c *Client) InstallScript(ctx context.Context, name string, source []byte) 
 			return err
 		}
 	}
+	return c.UpdateScript(ctx, name, expected, source)
+}
+
+// UpdateScript atomically replaces exactly the source observed by the caller.
+func (c *Client) UpdateScript(ctx context.Context, name string, expected *string, source []byte) error {
+	if err := ValidateAppName(name); err != nil {
+		return err
+	}
 	payload, err := json.Marshal(struct {
 		Expected *string `json:"expected_source"`
 		Source   string  `json:"source"`
@@ -152,8 +160,8 @@ func (c *Client) StopOnDemand(ctx context.Context, name string) error {
 }
 
 func (c *Client) Script(ctx context.Context, name string) (ScriptInfo, error) {
-	var apps []ScriptInfo
-	if err := c.request(ctx, http.MethodGet, "/api/v1/apps", "", nil, &apps); err != nil {
+	apps, err := c.Scripts(ctx)
+	if err != nil {
 		return ScriptInfo{}, err
 	}
 	for _, app := range apps {

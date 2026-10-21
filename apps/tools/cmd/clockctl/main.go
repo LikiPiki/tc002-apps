@@ -22,7 +22,7 @@ func main() {
 			return
 		}
 		switch os.Args[1] {
-		case "deploy", "show", "start", "stop", "list", "check", "validate":
+		case "deploy", "show", "start", "stop", "list", "check", "validate", "rollback":
 			if err := runScripts(os.Args[1], os.Args[2:]); err != nil {
 				if err == flag.ErrHelp {
 					return

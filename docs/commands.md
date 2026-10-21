@@ -4,6 +4,12 @@
 
 Run `make clock-validate` or `clockctl validate` to validate the selected clock apps without network requests. This checks lifecycle markers, declared settings, defaults, lengths, select options, numeric bounds, colors and display-policy time semantics before deployment.
 
+## Deployment plans and recovery
+
+`clockctl deploy --dry-run` reads current sources/settings and prints changes without writing. Normal deployment skips unchanged values, uses compare-and-swap source updates, saves a private recovery record in `dist/deploy/`, and observes enabled scripts for 1.5 seconds. Use `--backup <new-file>` to choose the recovery path, `--observe 3s` to change the observation window, and `--timeout 2m` to bound the entire command. Ctrl-C and SIGTERM cancel in-flight requests. Disabled apps remain disabled.
+
+`clockctl rollback --backup dist/deploy/<record>.json` restores previous sources, declared settings and enabled state on the same target. Recovery stops if a source differs from both the before/after record. Newly installed apps are disabled rather than deleted, because the device has no atomic delete operation. Recovery is explicit, sequential and may itself be partial. Settings writes have no compare-and-swap API; avoid concurrent settings edits during deployment or recovery. Records capture declared configuration, not arbitrary app storage or external side effects.
+
 Run commands from the repository root. Utility commands live in `apps/tools/`; independent VPS programs live in `apps/server/`. Both can run natively or in their separate Docker images. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
 
 Both commands read `configs/config.toml` and optional `configs/config.local.toml`. See [Project configuration](configuration.md) for the schema, merging, paths, and Docker mounts.

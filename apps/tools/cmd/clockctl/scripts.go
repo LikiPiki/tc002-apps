@@ -5,7 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockapps"
@@ -22,12 +25,23 @@ func runScripts(command string, args []string) error {
 	kind := flags.String("kind", "all", "all, screens, services, or on-demand")
 	url := flags.String("url", "", "override target URL (otherwise AWTRIX_URL, then config)")
 	duration := flags.Duration("duration", 2*time.Second, "check: observation duration (headless requires at least 1500ms)")
+	timeout := flags.Duration("timeout", 2*time.Minute, "whole command timeout")
+	dryRun := flags.Bool("dry-run", false, "deploy: inspect changes without writing")
+	backup := flags.String("backup", "", "deploy: new recovery file; rollback: recovery file to restore")
+	observe := flags.Duration("observe", 1500*time.Millisecond, "deploy: verification window per enabled app")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
 	}
+	if *timeout <= 0 || *observe < 0 {
+		return fmt.Errorf("timeout must be positive and observe nonnegative")
+	}
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	ctx, cancel := context.WithTimeout(signalCtx, *timeout)
+	defer cancel()
 	if command == "check" {
 		if err := clockcheck.CheckInvocation(*url, os.Getenv("TC002_CHECK_SANDBOX")); err != nil {
 			return err
@@ -52,23 +66,33 @@ func runScripts(command string, args []string) error {
 	}
 	fmt.Printf("Target: %s\n", config.Clock.URL)
 	if command == "check" {
-		if err := clockcheck.RequireSandbox(context.Background(), client); err != nil {
+		if err := clockcheck.RequireSandbox(ctx, client); err != nil {
 			return err
 		}
+	}
+	if command == "rollback" {
+		if *backup == "" {
+			return fmt.Errorf("rollback requires --backup")
+		}
+		plan, err := clockdeploy.LoadPlan(*backup, config.Clock.URL)
+		if err != nil {
+			return err
+		}
+		return plan.Rollback(ctx, client)
 	}
 	if command == "show" || command == "start" || command == "stop" {
 		if *app == "" {
 			return fmt.Errorf("%s requires APP=<name>", command)
 		}
-		if err := client.CheckScripting(context.Background()); err != nil {
+		if err := client.CheckScripting(ctx); err != nil {
 			return err
 		}
-		info, err := client.Script(context.Background(), *app)
+		info, err := client.Script(ctx, *app)
 		if err != nil {
 			return err
 		}
 		if command == "stop" {
-			if err := client.StopOnDemand(context.Background(), *app); err != nil {
+			if err := client.StopOnDemand(ctx, *app); err != nil {
 				return err
 			}
 			fmt.Printf("Stopped %s\n", *app)
@@ -77,11 +101,15 @@ func runScripts(command string, args []string) error {
 		if (command == "start") != info.OnDemand {
 			return fmt.Errorf("use clock-start for on-demand apps and clock-show for rotating screens")
 		}
-		if err := client.ShowScript(context.Background(), *app); err != nil {
+		if err := client.ShowScript(ctx, *app); err != nil {
 			return err
 		}
-		time.Sleep(300 * time.Millisecond)
-		if err := client.CheckScript(context.Background(), *app); err != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(300 * time.Millisecond):
+		}
+		if err := client.CheckScript(ctx, *app); err != nil {
 			return err
 		}
 		fmt.Printf("Showing %s\n", *app)
@@ -100,12 +128,30 @@ func runScripts(command string, args []string) error {
 		return nil
 	}
 	if command != "list" {
-		if err := client.CheckScripting(context.Background()); err != nil {
+		if err := client.CheckScripting(ctx); err != nil {
 			return err
 		}
 	}
 	if command == "deploy" {
-		report, err := clockdeploy.Run(context.Background(), client, scripts)
+		plan, err := clockdeploy.Prepare(ctx, client, config.Clock.URL, scripts)
+		if err != nil {
+			return err
+		}
+		fmt.Print(plan.String())
+		if *dryRun {
+			return nil
+		}
+		if *backup == "" {
+			*backup = filepath.Join("dist", "deploy", time.Now().UTC().Format("20060102T150405.000000000")+".json")
+		}
+		if err := os.MkdirAll(filepath.Dir(*backup), 0o700); err != nil {
+			return err
+		}
+		if err := plan.Save(*backup); err != nil {
+			return err
+		}
+		fmt.Printf("Recovery record: %s\n", *backup)
+		report, err := plan.Apply(ctx, client, *observe)
 		fmt.Print(report.String())
 		return err
 	}
@@ -114,13 +160,17 @@ func runScripts(command string, args []string) error {
 			fmt.Printf("%s/%s: %s\n", script.Kind, script.Name, script.Path)
 			continue
 		}
-		report, err := clockdeploy.Run(context.Background(), client, []clockapps.Script{script})
+		plan, err := clockdeploy.Prepare(ctx, client, config.Clock.URL, []clockapps.Script{script})
+		if err != nil {
+			return err
+		}
+		report, err := plan.Apply(ctx, client, 0)
 		if err != nil {
 			fmt.Print(report.String())
 			return err
 		}
 		if command == "check" {
-			if err := checkScript(client, script, *duration); err != nil {
+			if err := checkScript(ctx, client, script, *duration); err != nil {
 				return fmt.Errorf("check %s: %w", script.Name, err)
 			}
 		} else {
@@ -130,8 +180,8 @@ func runScripts(command string, args []string) error {
 	return nil
 }
 
-func checkScript(client *awtrix.Client, script clockapps.Script, duration time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), duration+10*time.Second)
+func checkScript(parent context.Context, client *awtrix.Client, script clockapps.Script, duration time.Duration) error {
+	ctx, cancel := context.WithTimeout(parent, duration+10*time.Second)
 	defer cancel()
 	if script.Kind == "services" {
 		if script.Name == "display-policy" {

@@ -107,6 +107,23 @@ func prepare(scripts []Script) ([]Script, error) {
 		if err := validateDomain(*entry); err != nil {
 			return nil, err
 		}
+		// Device config responses expose RGB values as numbers, regardless of input encoding.
+		for _, line := range strings.Split(string(source), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			if !strings.HasPrefix(line, "#") {
+				break
+			}
+			fields := strings.Fields(strings.TrimSpace(strings.TrimPrefix(line, "#")))
+			if len(fields) >= 3 && fields[0] == "@config" && fields[2] == "color" {
+				if value, ok := entry.Settings[fields[1]]; ok {
+					rgb, _ := Color(value)
+					entry.Settings[fields[1]] = int64(rgb)
+				}
+			}
+		}
 		entry.Source = source
 	}
 	return scripts, nil

@@ -72,7 +72,7 @@ func (r Report) String() string {
 	verified := 0
 	uncertain := false
 	for _, result := range r.Results {
-		if result.Verification == "passed" {
+		if result.Verification == "passed" || result.Verification == "disabled" {
 			verified++
 		}
 		uncertain = uncertain || result.Source == "unconfirmed" || result.Settings == "unconfirmed"
