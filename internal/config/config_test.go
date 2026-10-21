@@ -45,18 +45,31 @@ func TestPersonalOverridesMergeAcrossSections(t *testing.T) {
 
 func TestRejectInvalidConfig(t *testing.T) {
 	for _, content := range []string{
-		"[clock]\napps = []", "[server]\napps = []", "[clock]\napp = [\"cigar\"]",
-		"[clock.deploy]\nscreens = \"cigar\"", "[server]\napps = [\"*\", \"worker\"]",
-		"[clock]\nurl = \"not-a-url\"", "[server.worker]\ninterval = \"0s\"",
-		"[server.worker]\ninterval = \"nope\"", "[clock]\nurl = [",
-		"[clock.deploy]\nservices = [\"*\", \"policy\"]",
-		"[clock.services.policy]\nsetting = [1,2]",
+		"[clock]\napps = []", "[clock]\napp = [\"cigar\"]",
+		"[clock.deploy]\nscreens = \"cigar\"", "[server]\napps = true",
+		"[clock]\nurl = [", "[server.worker]\ninterval = 12",
 	} {
 		path := filepath.Join(t.TempDir(), "config.toml")
 		fixture(t, path, content)
 		if _, err := Load(path, ""); err == nil {
 			t.Errorf("accepted invalid config: %s", content)
 		}
+	}
+}
+
+func TestLoadDoesNotValidateUnrelatedConsumers(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	fixture(t, path, "[clock]\nurl = \"not-a-url\"\n[clock.services.unused]\nsetting = [1,2]\n[server.worker]\ninterval = \"invalid\"\n")
+	c, err := Load(path, "")
+	if err != nil {
+		t.Fatalf("semantic values must be left to consumers: %v", err)
+	}
+	if _, err := c.WorkerInterval(); err == nil {
+		t.Fatal("worker accepted invalid interval")
+	}
+	c.Server.Worker.Interval = "30s"
+	if interval, err := c.WorkerInterval(); err != nil || interval.String() != "30s" {
+		t.Fatalf("valid worker config depends on unrelated clock config: %v, %v", interval, err)
 	}
 }
 

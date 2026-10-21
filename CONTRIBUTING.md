@@ -50,4 +50,4 @@ Register per-app settings under `clock.<category>.<name>` in TOML (`on_demand` f
 - Update the relevant guides and examples when behavior or configuration changes.
 - Keep personal settings and actual credentials in the ignored `configs/config.local.toml`, not in commits. All code reads the [same project TOML](docs/configuration.md).
 
-Open a branch and submit a pull request describing the change and how you verified it. CI checks Go formatting, vet, tests, native builds, Compose configuration, and isolated server/tool image builds. It does not currently run the virtual-clock integration or automatically test Berry apps.
+Open a branch and submit a pull request describing the change and how you verified it. CI checks Go formatting, vet, tests, native builds, Compose configuration, isolated server/tool image builds, and Berry runtime smoke checks in a cached, disposable AWTRIX. It does not evaluate visual quality or physical-device behavior. A first cold AWTRIX build is slower than cached runs.

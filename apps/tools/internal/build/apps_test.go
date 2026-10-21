@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func fixture(t *testing.T, root, group, name string) {
@@ -15,6 +17,25 @@ func fixture(t *testing.T, root, group, name string) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBuildIgnoresUnrelatedClockAndWorkerSettings(t *testing.T) {
+	root := t.TempDir()
+	fixture(t, root, "server", "worker")
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("[clock]\nurl = \"invalid URL\"\n[server.worker]\ninterval = \"invalid interval\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := config.Load(path, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if targets, err := Select(root, c.Server.Apps, c.Tools.Apps, "server"); err != nil || len(targets) != 1 {
+		t.Fatalf("unrelated runtime fields blocked build: %v, %v", targets, err)
+	}
+	if _, err := Select(root, []string{}, nil, "server"); err == nil {
+		t.Fatal("build consumer accepted empty server selection")
 	}
 }
 

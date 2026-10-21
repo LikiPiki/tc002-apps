@@ -10,6 +10,7 @@ import (
 
 	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockapps"
 	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockcheck"
+	"github.com/LikiPiki/tc002-apps/apps/tools/internal/clockdeploy"
 	"github.com/LikiPiki/tc002-apps/internal/awtrix"
 	projectconfig "github.com/LikiPiki/tc002-apps/internal/config"
 )
@@ -27,8 +28,13 @@ func runScripts(command string, args []string) error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
 	}
-	if command == "check" && (*url == "" || *duration < 250*time.Millisecond) {
-		return fmt.Errorf("check requires an explicit --url and --duration >= 250ms; use make clock-check")
+	if command == "check" {
+		if err := clockcheck.CheckInvocation(*url, os.Getenv("TC002_CHECK_SANDBOX")); err != nil {
+			return err
+		}
+		if *duration < 250*time.Millisecond {
+			return fmt.Errorf("check requires --duration >= 250ms")
+		}
 	}
 	config, err := projectconfig.Load(*base, *personal)
 	if err != nil {
@@ -45,6 +51,11 @@ func runScripts(command string, args []string) error {
 		return err
 	}
 	fmt.Printf("Target: %s\n", config.Clock.URL)
+	if command == "check" {
+		if err := clockcheck.RequireSandbox(context.Background(), client); err != nil {
+			return err
+		}
+	}
 	if command == "show" || command == "start" || command == "stop" {
 		if *app == "" {
 			return fmt.Errorf("%s requires APP=<name>", command)
@@ -89,20 +100,19 @@ func runScripts(command string, args []string) error {
 			return err
 		}
 	}
+	if command == "deploy" {
+		report, err := clockdeploy.Run(context.Background(), client, scripts)
+		fmt.Print(report.String())
+		return err
+	}
 	for _, script := range scripts {
 		if command == "list" {
 			fmt.Printf("%s/%s: %s\n", script.Kind, script.Name, script.Path)
 			continue
 		}
-		if err := client.InstallScript(context.Background(), script.Name, script.Source); err != nil {
-			return fmt.Errorf("%s: %w", script.Name, err)
-		}
-		if len(script.Settings) != 0 {
-			if err := client.ConfigureScript(context.Background(), script.Name, script.Settings); err != nil {
-				return fmt.Errorf("configure %s: %w", script.Name, err)
-			}
-		}
-		if err := client.CheckScript(context.Background(), script.Name); err != nil {
+		report, err := clockdeploy.Run(context.Background(), client, []clockapps.Script{script})
+		if err != nil {
+			fmt.Print(report.String())
 			return err
 		}
 		if command == "check" {

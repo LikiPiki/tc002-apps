@@ -68,7 +68,11 @@ Headless scripts are observed for errors without switching the active app or req
 
 On-demand apps are installed dormant, started explicitly for the check, observed as visual apps, then stopped so their instance is unloaded. The repository category must match the Berry header; duplicate names, unknown configured apps/settings, and incorrect setting types fail before upload. The on-demand directory initially has no bundled tools; an empty selection is valid.
 
-Temporary containers, networks, and data are removed on success or failure. The regular virtual-clock instance and physical TC002 are not modified by the command. Image downloads/build caches remain. This check is available locally and is not added to CI.
+Temporary containers, networks, and data are removed on success or failure. The regular virtual-clock instance and physical TC002 are not modified by the command. Image downloads/build caches remain.
+
+The CLI `check` subcommand is an internal runner: it requires the Compose sandbox marker, accepts only the fixed `http://awtrix-check:8080` endpoint, and verifies `boardType=linux` before any script writes. A direct `clockctl check --url <device>` invocation is rejected before contacting the device. Use `make clock-check`, not a custom check URL.
+
+CI runs the same check in a dedicated `berry` job. Buildx caches the pinned AWTRIX build and the Go runner separately using GitHub Actions cache. The job loads both images, then runs `make clock-check CHECK_BUILD=0 LOCAL_CONFIG=`. Normal local runs build images by default; `CHECK_BUILD=0` is for prebuilt images. This checks runtime errors and frames, not animation quality or hardware behavior.
 
 ### Go integration smoke check
 

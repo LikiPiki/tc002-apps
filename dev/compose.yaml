@@ -33,6 +33,8 @@ services:
       args:
         APP: clockctl
     working_dir: /repo
+    environment:
+      TC002_CHECK_SANDBOX: "1"
     volumes:
       - ..:/repo:ro
     depends_on:

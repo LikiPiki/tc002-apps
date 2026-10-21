@@ -8,7 +8,7 @@ configs/config.local.toml.example  Personal override template, committed
 configs/config.local.toml          Optional personal overrides, ignored by Git
 ```
 
-The shared file is required. Personal settings may be absent. Unknown project fields, malformed TOML, invalid durations, and incorrect selection types fail with an error.
+The shared file is required. Personal settings may be absent. The loader validates TOML syntax, known project fields, and field types, then merges overrides. Semantic checks run only in the relevant consumer: a malformed unused clock URL or worker interval does not stop build selection. The effective clock URL is validated after URL overrides; the effective interval is validated by the worker after an explicit interval override.
 
 ## Shared layout
 
@@ -49,7 +49,7 @@ on = "10:00"
 off = "20:00"
 ```
 
-The CLI validates declared names/basic types, then patches settings through AWTRIX's API after uploading source. AWTRIX and the app validate constraints and semantics. Invalid settings can leave the installed app reporting an error; source and settings are separate updates. Settings edited through the web UI are overwritten by configured TOML values on the next deployment. See [Display Policy](../apps/clock/services/display-policy/README.md).
+The Berry catalog validates declared setting names/basic types for selected apps, then the CLI patches settings through AWTRIX's API after uploading source. Unused app settings are not semantically validated by unrelated Go build/runtime consumers. AWTRIX and the app validate constraints and semantics. Invalid settings can leave the installed app reporting an error; source and settings are separate updates, with per-app phase results reported by deployment. Settings edited through the web UI are overwritten by configured TOML values on the next deployment. See [Display Policy](../apps/clock/services/display-policy/README.md).
 
 `server.apps` selects VPS commands under `apps/server/cmd/`. `tools.apps` selects utilities under `apps/tools/cmd/`. Omission or `["*"]` selects all in that group. An empty server list remains an error; an empty tools list skips utility artifacts. This does not select running Compose services. `server.worker.interval` sets a positive Go duration, such as `30s` or `5m`.
 

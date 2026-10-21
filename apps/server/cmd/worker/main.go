@@ -29,7 +29,11 @@ func main() {
 		}
 	})
 	if !overridden {
-		*interval, _ = time.ParseDuration(config.Server.Worker.Interval)
+		*interval, err = config.WorkerInterval()
+		if err != nil {
+			slog.Error("invalid worker config", "error", err)
+			os.Exit(1)
+		}
 	}
 	if *interval <= 0 {
 		slog.Error("interval must be positive")

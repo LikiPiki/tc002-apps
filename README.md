@@ -35,6 +35,7 @@ tc002-apps/
 │       ├── internal/
 │       │   ├── build/             Go artifact selection and source discovery
 │       │   ├── clockapps/         Berry catalog and metadata validation
+│       │   ├── clockdeploy/       Confirmed phases and partial-deployment reports
 │       │   └── clockcheck/        Execution/frame checking scenarios
 │       └── Dockerfile             Tool sources + shared libraries only
 ├── internal/                      SHARED Go libraries
@@ -60,7 +61,7 @@ tc002-apps/
 │   ├── integrations.md            How screen/server components form one feature
 │   ├── deployment.md              VPS deployment, image transfer, updates
 │   └── architecture.md            Runtime boundaries and data flow
-├── .github/workflows/ci.yml        Go checks, builds, and production Docker builds
+├── .github/workflows/ci.yml        Go/Docker builds and Berry runtime smoke checks
 ├── Makefile                       Main entry point for build and dev commands
 ├── go.mod                         Shared Go module for all Go code
 ├── .gitignore                     Keep local settings and build output out of Git

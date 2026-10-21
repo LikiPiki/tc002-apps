@@ -190,10 +190,23 @@ func (c *Client) ConfigureScript(ctx context.Context, name string, settings map[
 	if err := c.request(ctx, http.MethodPatch, "/api/v1/apps/"+name+"/config", "application/json", body, &result); err != nil {
 		return err
 	}
+	if result.OK && len(result.Error) != 0 && string(result.Error) != "null" {
+		return &SettingsRestartError{App: name, Detail: string(result.Error)}
+	}
 	if !result.OK || string(result.Error) != "null" {
 		return fmt.Errorf("script %s settings failed: ok=%v error=%s", name, result.OK, result.Error)
 	}
 	return nil
+}
+
+// SettingsRestartError means AWTRIX saved settings but the restarted app failed.
+type SettingsRestartError struct {
+	App    string
+	Detail string
+}
+
+func (e *SettingsRestartError) Error() string {
+	return fmt.Sprintf("script %s settings were saved but restart failed: %s", e.App, e.Detail)
 }
 
 func (c *Client) confirmedCommand(ctx context.Context, method, path string, payload []byte) error {

@@ -6,6 +6,7 @@ import (
 )
 
 type DeviceInfo struct {
+	BoardType        string `json:"boardType"`
 	CurrentApp       string `json:"currentApp"`
 	ScriptingRunning bool   `json:"scriptingRunning"`
 }

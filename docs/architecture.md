@@ -26,6 +26,8 @@ shared internal ─X─> application/tool internals
 
 Root `internal/awtrix` implements API requests/responses, while `apps/tools/internal/clockcheck` owns sampling loops and assertions. Root `internal/config` parses/merges TOML; it does not discover source files. `apps/tools/internal/build` selects Go artifacts, and `clockapps` selects Berry apps. Go's `internal` import rules enforce the utility implementation boundary. Keep server-only business logic in `apps/server/internal` when needed.
 
+`internal/config` enforces TOML syntax and project field types, but semantic validation belongs to consumers: build selection validates only selected Go artifacts, clock clients validate the effective URL after overrides, the Berry catalog validates selected app metadata/settings, and worker runtime validates its effective interval. Broken unused clock/runtime values do not block unrelated build operations.
+
 The root Go module is shared, but runtime dependencies and source copies are separated. Build artifacts include their group (`server/worker`, `tools/clockctl`) so a utility and a server can even have the same short name without overwriting each other. Make is orchestration; root `scripts/`, `dev/`, and `deploy/` contain shell/infrastructure files, not application packages.
 
 ## Three Berry lifecycle kinds
@@ -60,7 +62,7 @@ App selection is not app behavior. A deployed service can have a feature disable
 
 The catalog validates unique names, category/header agreement, declared setting names, and basic setting types before deployment. AWTRIX validates setting constraints, and the Berry app validates semantic rules such as time windows. `clockctl` does not contain an app-name-specific settings branch. Per-field personal overrides preserve shared app defaults.
 
-Source updates use AWTRIX's atomic compare-and-swap endpoint. Settings are then patched through the script-config API as a separate operation, restarting the app. Code and settings are not one transaction; an error is reported and the batch stops. Editing settings in the web UI is supported, but the next deployment reapplies the configured TOML values.
+Source updates use AWTRIX's atomic compare-and-swap endpoint. Settings are then patched through the script-config API as a separate operation, restarting the app. Code and settings are not one transaction. `apps/tools/internal/clockdeploy` records confirmed per-app phases, stops the batch on failure, and reports completed, unconfirmed, failed, and unattempted work without claiming a batch rollback. Confirmed settings saves with a failed restart are distinguished from uncertain writes. Editing settings in the web UI is supported, but the next deployment reapplies the configured TOML values.
 
 ## Commands and checks
 
@@ -69,7 +71,7 @@ Source updates use AWTRIX's atomic compare-and-swap endpoint. Settings are then 
 - `clock-start` / `clock-stop`: begin/end an on-demand session.
 - `clock-check`: disposable local runtime checks; observes services without showing them, and starts/observes/stops on-demand sessions.
 
-Inside the check sandbox, services are disabled after observation and display power is restored before visual checks. This prevents a night policy from masking drawing errors in later apps. Hardware-dependent behavior, delayed events, and actual appearance still need dedicated checks. Berry runtime checks remain local, not part of CI.
+Inside the check sandbox, services are disabled after observation and display power is restored before visual checks. This prevents a night policy from masking drawing errors in later apps. The internal runner requires the sandbox marker and fixed URL, then checks the endpoint's Linux board identity before writes. CI runs the same Berry runtime checks with separately cached AWTRIX and runner images. Hardware-dependent behavior, delayed events, and actual appearance still need dedicated checks.
 
 ## Additional AWTRIX concepts
 

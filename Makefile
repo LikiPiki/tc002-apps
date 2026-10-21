@@ -6,7 +6,8 @@ APP ?=
 KIND ?= all
 GROUP ?= all
 CHECK_DURATION ?= 2s
-export TEXT CONFIG LOCAL_CONFIG APP KIND GROUP CHECK_DURATION
+CHECK_BUILD ?= 1
+export TEXT CONFIG LOCAL_CONFIG APP KIND GROUP CHECK_DURATION CHECK_BUILD
 
 .PHONY: help check build docker-build docker-save list-apps dev dev-build dev-down dev-logs dev-notify dev-check clock-list clock-deploy clock-show clock-start clock-stop clock-check
 

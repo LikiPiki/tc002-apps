@@ -19,8 +19,13 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-compose build awtrix-check clock-check
-compose up -d --wait awtrix-check
+case "${CHECK_BUILD:-1}" in
+    1) compose build awtrix-check clock-check ;;
+    0) : ;; # CI preloads the pinned images through Buildx with a remote cache.
+    *) printf '%s\n' 'CHECK_BUILD must be 0 or 1' >&2; exit 2 ;;
+esac
+docker image inspect tc002-apps/awtrix-check:local tc002-apps/tools/clockctl:check >/dev/null
+compose up -d --no-build --pull never --wait awtrix-check
 compose run --rm --no-deps clock-check check \
     --url http://awtrix-check:8080 \
     --config "${CONFIG:-configs/config.toml}" \

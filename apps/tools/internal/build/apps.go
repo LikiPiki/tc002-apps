@@ -30,6 +30,9 @@ func Select(root string, server, tools []string, group string) ([]Target, error)
 			continue
 		}
 		names := entry.names
+		if entry.group == "server" && names != nil && len(names) == 0 {
+			return nil, fmt.Errorf("server.apps must be [\"*\"] or a nonempty list")
+		}
 		if names == nil {
 			paths, err := filepath.Glob(filepath.Join(root, entry.group, "cmd", "*", "main.go"))
 			if err != nil {

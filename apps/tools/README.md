@@ -7,6 +7,7 @@ cmd/clockctl/          Notification, Berry lifecycle, and build-selection CLI
 internal/build/       Select and validate Go build artifacts
 internal/clockapps/   Discover Berry apps and validate lifecycle/config metadata
 internal/clockcheck/  Observe script execution and pixel frames in runtime checks
+internal/clockdeploy/ Report sequential source/settings/verification deployment phases
 Dockerfile            Tool-only build: apps/tools + shared internal libraries
 ```
 

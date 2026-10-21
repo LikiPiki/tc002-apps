@@ -5,9 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/pelletier/go-toml/v2"
@@ -100,103 +98,73 @@ func Load(base, personal string) (Config, error) {
 			c.Clock.URL = *fields.Clock.URL
 		}
 		for _, field := range []struct {
-			name string
-			src  *[]string
-			dst  *[]string
+			src *[]string
+			dst *[]string
 		}{
-			{"screens", fields.Clock.Deploy.Screens, &c.Clock.Deploy.Screens},
-			{"services", fields.Clock.Deploy.Services, &c.Clock.Deploy.Services},
-			{"on_demand", fields.Clock.Deploy.OnDemand, &c.Clock.Deploy.OnDemand},
+			{fields.Clock.Deploy.Screens, &c.Clock.Deploy.Screens},
+			{fields.Clock.Deploy.Services, &c.Clock.Deploy.Services},
+			{fields.Clock.Deploy.OnDemand, &c.Clock.Deploy.OnDemand},
 		} {
 			if field.src == nil {
 				continue
 			}
-			if len(*field.src) == 0 {
-				*field.dst = []string{}
-			} else if *field.dst, err = selection(*field.src); err != nil {
-				return c, fmt.Errorf("%s: clock.deploy.%s: %w", path, field.name, err)
-			}
+			*field.dst = selection(*field.src)
 		}
 		for _, field := range []struct {
-			name string
-			src  AppSettings
-			dst  AppSettings
+			src AppSettings
+			dst AppSettings
 		}{
-			{"screens", fields.Clock.Screens, c.Clock.Screens},
-			{"services", fields.Clock.Services, c.Clock.Services},
-			{"on_demand", fields.Clock.OnDemand, c.Clock.OnDemand},
+			{fields.Clock.Screens, c.Clock.Screens},
+			{fields.Clock.Services, c.Clock.Services},
+			{fields.Clock.OnDemand, c.Clock.OnDemand},
 		} {
-			if err := mergeSettings(field.dst, field.src); err != nil {
-				return c, fmt.Errorf("%s: clock.%s: %w", path, field.name, err)
-			}
+			mergeSettings(field.dst, field.src)
 		}
 		if fields.Server.Apps != nil {
-			c.Server.Apps, err = selection(*fields.Server.Apps)
-			if err != nil {
-				return c, fmt.Errorf("%s: server.apps: %w", path, err)
-			}
+			c.Server.Apps = selection(*fields.Server.Apps)
 		}
 		if fields.Server.Worker.Interval != nil {
 			c.Server.Worker.Interval = *fields.Server.Worker.Interval
 		}
 		if fields.Tools.Apps != nil {
-			if len(*fields.Tools.Apps) == 0 {
-				c.Tools.Apps = []string{}
-			} else if c.Tools.Apps, err = selection(*fields.Tools.Apps); err != nil {
-				return c, fmt.Errorf("%s: tools.apps: %w", path, err)
-			}
+			c.Tools.Apps = selection(*fields.Tools.Apps)
 		}
-	}
-	u, err := url.Parse(c.Clock.URL)
-	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.RawQuery != "" || u.Fragment != "" {
-		return c, fmt.Errorf("clock.url must be an absolute HTTP(S) base URL without query or fragment")
-	}
-	interval, err := time.ParseDuration(c.Server.Worker.Interval)
-	if err != nil || interval <= 0 {
-		return c, fmt.Errorf("server.worker.interval must be a positive Go duration")
 	}
 	return c, nil
 }
 
-func mergeSettings(dst, src AppSettings) error {
+// WorkerInterval validates only worker runtime semantics, after explicit overrides.
+func (c Config) WorkerInterval() (time.Duration, error) {
+	interval, err := time.ParseDuration(c.Server.Worker.Interval)
+	if err != nil || interval <= 0 {
+		return 0, fmt.Errorf("server.worker.interval %q must be a positive Go duration", c.Server.Worker.Interval)
+	}
+	return interval, nil
+}
+
+func mergeSettings(dst, src AppSettings) {
 	for name, fields := range src {
-		if !namePattern.MatchString(name) || len(name) > 32 {
-			return fmt.Errorf("invalid app name %q", name)
-		}
 		if dst[name] == nil {
 			dst[name] = map[string]any{}
 		}
 		for key, value := range fields {
-			switch value.(type) {
-			case string, bool, int64, float64:
-				dst[name][key] = value
-			default:
-				return fmt.Errorf("%s.%s must be a scalar app setting", name, key)
-			}
+			dst[name][key] = value
 		}
 	}
-	return nil
 }
 
-var namePattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
-
-func selection(names []string) ([]string, error) {
+// Preserve invalid semantic values for the consumer to validate; parsing stays independent.
+func selection(names []string) []string {
 	if len(names) == 1 && names[0] == "*" {
-		return nil, nil
-	}
-	if len(names) == 0 {
-		return nil, fmt.Errorf("use [\"*\"] for all apps or a nonempty list of names")
+		return nil
 	}
 	seen := make(map[string]bool)
-	var selected []string
+	selected := make([]string, 0, len(names))
 	for _, name := range names {
-		if !namePattern.MatchString(name) {
-			return nil, fmt.Errorf("invalid app name %q", name)
-		}
 		if !seen[name] {
 			selected = append(selected, name)
 			seen[name] = true
 		}
 	}
-	return selected, nil
+	return selected
 }
