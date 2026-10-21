@@ -24,6 +24,17 @@ clock-check:
 status-check:
 	sh scripts/check-status.sh
 
+.PHONY: sprites sprites-check
+sprites:
+	go run ./apps/tools/cmd/spritegen
+
+sprites-check:
+	go run ./apps/tools/cmd/spritegen --check
+
+.PHONY: previews
+previews:
+	go run ./apps/tools/cmd/previewgen
+
 clock-list clock-deploy clock-show clock-start clock-stop clock-validate:
 	go run ./apps/tools/cmd/clockctl $(patsubst clock-%,%,$@) --config "$$CONFIG" --local-config "$$LOCAL_CONFIG" --app "$$APP" --kind "$$KIND"
 

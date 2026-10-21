@@ -14,6 +14,14 @@ This repository is a small toolkit with autonomous clock apps and an HTTP health
 
 Physical clocks must run **AWTRIX NG**. The stock Ulanzi firmware and AWTRIX 3 are not supported.
 
+## Clock app previews
+
+| Smoking Cigar | Swimming Mackerel | Kicking Seagull |
+| --- | --- | --- |
+| ![Animated cigar](docs/previews/cigar.gif) | ![Animated mackerel](docs/previews/mackerel.gif) | ![Animated seagull](docs/previews/seagull.gif) |
+
+Captured from the real headless AWTRIX engine. See [preview generation](docs/previews/README.md). The [service-status screen](docs/integrations/service-status.md) adds live HTTP health data with expiry.
+
 ## Project structure
 
 ```text

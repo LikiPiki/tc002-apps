@@ -7,6 +7,7 @@ The body is cropped, masked, and reduced to a 48 x 12 sprite with a small palett
 ## Files
 
 - `main.be`: ready-to-install Berry app, with the sprite embedded.
+- `sprite.png`: editable body artwork, losslessly reconstructed from the original embedded palette/rows.
 
 No network, server, downloaded icons, or input data are needed. Only `main.be` is uploaded to the clock. The app stays in rotation for 15 seconds per turn.
 
@@ -28,6 +29,6 @@ Check `"error":null` in the upload response and inspect the live preview at http
 
 ## Editing
 
-Edit `main.be` directly to change the animation or embedded sprite. No build step, Python, or Pillow is required.
+Edit `sprite.png` in a pixel editor and run `make sprites` to update the marked palette/rows in `main.be`. Edit the remaining Berry code to change the animation. No Python or Pillow is required. Run `make sprites-check` to verify generated code and `make clock-check APP=seagull` for animation/fixed-time golden checks.
 
 The artwork was adapted from a screenshot supplied by the repository owner; the original artwork's author and license have not been identified.

@@ -17,6 +17,7 @@ jobs:
           go-version: '1.25.x'
           cache: false
       - run: make check
+      - run: make sprites-check
       - run: make build
 
   docker:

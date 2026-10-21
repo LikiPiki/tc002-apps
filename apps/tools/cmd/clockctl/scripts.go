@@ -240,6 +240,9 @@ func checkScript(parent context.Context, client *awtrix.Client, script clockapps
 			return err
 		}
 	}
+	if err := clockcheck.CheckSnapshots(ctx, client, script.Name, script.Path, script.Source, os.Getenv("TC002_CHECK_ARTIFACTS")); err != nil {
+		return err
+	}
 	fmt.Printf("Checked %s/%s: %d frames, no runtime errors\n", script.Kind, script.Name, frames)
 	return nil
 }

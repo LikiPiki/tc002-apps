@@ -1,1 +1,9 @@
-{"nonempty": true, "animated": true}
+{
+  "nonempty": true,
+  "animated": true,
+  "snapshots": {
+    "0": "fd570350d53ffd3cb5f72c8f5f1ac28b8337ebe48677b7452560dd4c1939cbaf",
+    "500": "4808c679d20ee020995c82472c8a994bd8659050cec0d9b5dd74b40cee1fbaff",
+    "1000": "2620a5b1684605829bad45a62c3eeaff592a76864a7a8c14375797d490a1bb57"
+  }
+}
