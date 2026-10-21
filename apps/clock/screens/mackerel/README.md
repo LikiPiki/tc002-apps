@@ -26,7 +26,7 @@ For a physical TC002, replace the local URL with the clock's address. Add `curl 
 
 ## Editing and compatibility
 
-Edit `sprite.png` in a pixel editor, retaining binary transparency, and run `make sprites` to regenerate the marked Berry palette/rows. The PNG is a lossless reconstruction of the pre-existing embedded artwork. Edit `main.be` outside those markers to change motion. `make sprites-check` detects stale generated code; `make clock-check APP=mackerel` checks animation and fixed-time golden frames from `check.json`.
+Edit `sprite.png` in a pixel editor, retaining binary transparency, and run `make sprites` to regenerate the marked Berry palette/rows. The PNG is a lossless reconstruction of the pre-existing embedded artwork. Edit `main.be` outside those markers to change motion. `make sprites-check` detects stale generated code; `make clock-check APP=mackerel` checks runtime/frame validity and records a GIF for visual inspection.
 
 Requires AWTRIX NG with Berry scripting, the `math` module, and a 52 x 16 display. The layout does not target 8-row clocks.
 

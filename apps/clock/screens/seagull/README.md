@@ -29,6 +29,6 @@ Check `"error":null` in the upload response and inspect the live preview at http
 
 ## Editing
 
-Edit `sprite.png` in a pixel editor and run `make sprites` to update the marked palette/rows in `main.be`. Edit the remaining Berry code to change the animation. No Python or Pillow is required. Run `make sprites-check` to verify generated code and `make clock-check APP=seagull` for animation/fixed-time golden checks.
+Edit `sprite.png` in a pixel editor and run `make sprites` to update the marked palette/rows in `main.be`. Edit the remaining Berry code to change the animation. No Python or Pillow is required. Run `make sprites-check` to verify generated code and `make clock-check APP=seagull` to check runtime/frame validity and record a GIF for visual inspection.
 
 The artwork was adapted from a screenshot supplied by the repository owner; the original artwork's author and license have not been identified.

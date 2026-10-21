@@ -1,10 +1,10 @@
 # Local development
 
 Runtime checks save animation previews and runner output under `dist/clock-check/`.
-Bundled animations declare nonempty/changing-frame expectations in `check.json`.
+Visual apps use the same runtime and frame-validity checks, with no per-app test configuration. Static and black frames are valid; inspect the GIF to evaluate the picture and animation.
 On failure, the sandbox engine log is saved too; CI uploads these diagnostics.
 
-Animation `check.json` files also contain raw-frame SHA-256 goldens at fixed `now_ms()` values. Checks install a sandbox-only copy with frozen time, leaving production sources untouched. On an intentional visual change, inspect the generated `*-snapshots.gif` and update the corresponding hashes from `*-snapshots.json`. Artifacts live in a separate subdirectory per invocation so concurrent checks do not overwrite diagnostics.
+Artifacts live in a separate subdirectory per invocation so concurrent checks do not overwrite diagnostics. GIFs are captured during the runtime observation window, including available frames before a failure.
 
 Use `make sprites` after editing app-owned `sprite.png` files, `make sprites-check` to verify generated Berry, and `make previews` after runtime checks to regenerate the README gallery.
 

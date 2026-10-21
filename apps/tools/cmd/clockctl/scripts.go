@@ -235,20 +235,14 @@ func checkScript(parent context.Context, client *awtrix.Client, script clockapps
 	if err := client.ShowScript(ctx, script.Name); err != nil {
 		return err
 	}
-	frames, err := clockcheck.ObserveScript(ctx, client, script.Name, duration)
+	frames, err := clockcheck.ObserveScript(ctx, client, script.Name, duration, os.Getenv("TC002_CHECK_ARTIFACTS"))
 	if err != nil {
-		return err
-	}
-	if err := clockcheck.CheckFrames(ctx, client, script.Name, script.Path, os.Getenv("TC002_CHECK_ARTIFACTS")); err != nil {
 		return err
 	}
 	if script.Kind == "on-demand" {
 		if err := client.StopOnDemand(ctx, script.Name); err != nil {
 			return err
 		}
-	}
-	if err := clockcheck.CheckSnapshots(ctx, client, script.Name, script.Path, script.Source, os.Getenv("TC002_CHECK_ARTIFACTS")); err != nil {
-		return err
 	}
 	fmt.Printf("Checked %s/%s: %d frames, no runtime errors\n", script.Kind, script.Name, frames)
 	return nil

@@ -3,8 +3,11 @@ package clockcheck
 import (
 	"context"
 	"fmt"
+	"image/gif"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -40,20 +43,51 @@ func TestObserveScript(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			client, _ := awtrix.NewClient(server.URL)
-			frames, err := ObserveScript(context.Background(), client, "demo", 250*time.Millisecond)
+
+			client, err := awtrix.NewClient(server.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			artifacts := t.TempDir()
+
+			frames, err := ObserveScript(context.Background(), client, "demo", 250*time.Millisecond, artifacts)
 			if (err != nil) != test.fail || (!test.fail && frames < 2) {
 				t.Fatalf("frames=%d error=%v, want failure=%v", frames, err, test.fail)
+			}
+
+			if frames == 0 {
+				return
+			}
+
+			file, err := os.Open(filepath.Join(artifacts, "demo.gif"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+
+			preview, err := gif.DecodeAll(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(preview.Image) != frames {
+				t.Fatalf("preview has %d frames; observed %d", len(preview.Image), frames)
 			}
 		})
 	}
 }
 
 func TestObserveScriptCancellation(t *testing.T) {
-	client, _ := awtrix.NewClient("http://127.0.0.1:1")
+	client, err := awtrix.NewClient("http://127.0.0.1:1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := ObserveScript(ctx, client, "demo", time.Second); err != context.Canceled {
+
+	if _, err := ObserveScript(ctx, client, "demo", time.Second, ""); err != context.Canceled {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -66,7 +100,12 @@ func TestHeadlessObservationDoesNotAccessDisplay(t *testing.T) {
 		fmt.Fprint(w, `[{"name":"policy","origin":"script","enabled":true,"headless":true,"error":null}]`)
 	}))
 	defer server.Close()
-	client, _ := awtrix.NewClient(server.URL)
+
+	client, err := awtrix.NewClient(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	checks, err := ObserveHeadless(context.Background(), client, "policy", 1500*time.Millisecond)
 	if err != nil || checks < 1 {
 		t.Fatalf("checks=%d error=%v", checks, err)
