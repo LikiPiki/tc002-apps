@@ -35,8 +35,11 @@ services:
     working_dir: /repo
     environment:
       TC002_CHECK_SANDBOX: "1"
+      TC002_CHECK_ARTIFACTS: /artifacts
+    user: "${CHECK_UID:-10001}:${CHECK_GID:-10001}"
     volumes:
       - ..:/repo:ro
+      - ../dist/clock-check:/artifacts
     depends_on:
       awtrix-check:
         condition: service_healthy

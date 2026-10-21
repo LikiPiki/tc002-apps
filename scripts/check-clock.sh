@@ -1,6 +1,10 @@
 #!/bin/sh
 # Each invocation gets its own network and an ephemeral, port-free AWTRIX.
 set -eu
+mkdir -p dist/clock-check
+CHECK_UID=$(id -u)
+CHECK_GID=$(id -g)
+export CHECK_UID CHECK_GID
 PROJECT="tc002-clock-check-$$"
 compose() {
     docker compose -p "$PROJECT" -f dev/compose.yaml --profile checks "$@"
@@ -9,6 +13,7 @@ cleanup() {
     status=$?
     trap - EXIT
     if [ "$status" -ne 0 ]; then
+        compose logs --no-color awtrix-check >dist/clock-check/awtrix.log 2>&1 || true
         compose logs --tail=80 awtrix-check >&2 || true
     fi
     compose down --volumes --remove-orphans >/dev/null 2>&1 || true
@@ -26,8 +31,12 @@ case "${CHECK_BUILD:-1}" in
 esac
 docker image inspect tc002-apps/awtrix-check:local tc002-apps/tools/clockctl:check >/dev/null
 compose up -d --no-build --pull never --wait awtrix-check
+status=0
 compose run --rm --no-deps clock-check check \
     --url http://awtrix-check:8080 \
     --config "${CONFIG:-configs/config.toml}" \
     --local-config "${LOCAL_CONFIG-configs/config.local.toml}" \
-    --app "${APP:-}" --kind "${KIND:-all}" --duration "${CHECK_DURATION:-2s}"
+    --app "${APP:-}" --kind "${KIND:-all}" --duration "${CHECK_DURATION:-2s}" \
+    >dist/clock-check/runner.log 2>&1 || status=$?
+cat dist/clock-check/runner.log
+exit "$status"

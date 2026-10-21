@@ -1,5 +1,9 @@
 # Local development
 
+Runtime checks save animation previews and runner output under `dist/clock-check/`.
+Bundled animations declare nonempty/changing-frame expectations in `check.json`.
+On failure, the sandbox engine log is saved too; CI uploads these diagnostics.
+
 ## Commands
 
 Run these commands from the repository root:

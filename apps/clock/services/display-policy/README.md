@@ -37,4 +37,6 @@ The volatile `shared` values `display-policy.enabled`, `display-policy.time_read
 
 ## Local checks
 
+The sandbox also executes the production policy class against a deterministic clock and display, checking daytime/overnight boundaries, unknown time, and disabled scheduling. `check.be` contains the behavioral scenarios.
+
 `clock-check` observes the controller without showing it. It disables the controller after observation inside the disposable sandbox and turns the display on before checking later visual apps, so a nighttime schedule does not invalidate their checks. The physical clock is not changed by this command.

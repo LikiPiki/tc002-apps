@@ -130,6 +130,11 @@ func checkScript(client *awtrix.Client, script clockapps.Script, duration time.D
 	ctx, cancel := context.WithTimeout(context.Background(), duration+10*time.Second)
 	defer cancel()
 	if script.Kind == "services" {
+		if script.Name == "display-policy" {
+			if err := clockcheck.PolicyBehavior(ctx, client, script.Path, script.Source); err != nil {
+				return fmt.Errorf("policy behavior: %w", err)
+			}
+		}
 		checks, err := clockcheck.ObserveHeadless(ctx, client, script.Name, duration)
 		if err != nil {
 			return err
@@ -148,6 +153,9 @@ func checkScript(client *awtrix.Client, script clockapps.Script, duration time.D
 	}
 	frames, err := clockcheck.ObserveScript(ctx, client, script.Name, duration)
 	if err != nil {
+		return err
+	}
+	if err := clockcheck.CheckFrames(ctx, client, script.Name, script.Path, os.Getenv("TC002_CHECK_ARTIFACTS")); err != nil {
 		return err
 	}
 	if script.Kind == "on-demand" {
