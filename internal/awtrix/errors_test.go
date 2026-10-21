@@ -17,7 +17,12 @@ func TestHTTPErrorsContainOperationAndBoundedDetails(t *testing.T) {
 		status int
 		want   []string
 	}{
-		{"structured", `{"error":{"code":"validationFailed","message":"invalid notification","field":"text"}}`, 422, []string{"validationFailed", "invalid notification", "field=text"}},
+		{
+			name:   "structured",
+			body:   `{"error":{"code":"validationFailed","message":"invalid notification","field":"text"}}`,
+			status: http.StatusUnprocessableEntity,
+			want:   []string{"validationFailed", "invalid notification", "field=text"},
+		},
 		{"plain text", "service temporarily\nunavailable", 503, []string{"service temporarily unavailable"}},
 		{"empty", "", 401, nil},
 		{"invalid JSON", "{broken", 500, []string{"{broken"}},

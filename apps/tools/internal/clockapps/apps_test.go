@@ -26,8 +26,14 @@ func TestCatalogSelectionAndSettings(t *testing.T) {
 	fixture(t, root, "on-demand", "timer", "# @ondemand\nreturn Timer()")
 	c := config.ClockConfig{Services: config.AppSettings{"policy": {"enabled": true}}}
 	scripts, err := Select(root, c, "", "all")
-	if err != nil || len(scripts) != 3 || scripts[0].Kind != "services" || scripts[1].Kind != "screens" || scripts[2].Kind != "on-demand" || scripts[0].Settings["enabled"] != true {
+	if err != nil || len(scripts) != 3 {
 		t.Fatalf("unexpected catalog: %+v, %v", scripts, err)
+	}
+	if scripts[0].Kind != "services" ||
+		scripts[1].Kind != "screens" ||
+		scripts[2].Kind != "on-demand" ||
+		scripts[0].Settings["enabled"] != true {
+		t.Fatalf("unexpected catalog order or settings: %+v", scripts)
 	}
 	c.Deploy.Screens = []string{}
 	c.Deploy.Services = []string{}

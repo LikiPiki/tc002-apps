@@ -29,7 +29,13 @@ func PolicyBehavior(ctx context.Context, c *awtrix.Client, path string, source [
 		return fmt.Errorf("invalid policy harness")
 	}
 	production := strings.TrimSuffix(strings.TrimSpace(string(source)), "return DisplayPolicy()")
-	production = strings.NewReplacer("hour()", "check_hour()", "minute()", "check_minute()", "display.", "check_state.", "shared.", "check_state.").Replace(production)
+	replaceAPIs := strings.NewReplacer(
+		"hour()", "check_hour()",
+		"minute()", "check_minute()",
+		"display.", "check_state.",
+		"shared.", "check_state.",
+	)
+	production = replaceAPIs.Replace(production)
 	test := "# @headless true\n" + parts[0] + production + "\nclass PolicyCheck" + parts[1]
 	if err := c.InstallScript(ctx, "policy-behavior", []byte(test)); err != nil {
 		return err
@@ -55,6 +61,7 @@ func CheckFrames(ctx context.Context, c *awtrix.Client, name, path, artifacts st
 	if err := json.Unmarshal(data, &want); err != nil {
 		return err
 	}
+
 	var frames []awtrix.Frame
 	for i := 0; i < 12; i++ {
 		frame, err := c.Frame(ctx)
@@ -71,16 +78,26 @@ func CheckFrames(ctx context.Context, c *awtrix.Client, name, path, artifacts st
 		case <-time.After(150 * time.Millisecond):
 		}
 	}
+
 	if artifacts != "" {
 		if err := SaveGIF(filepath.Join(artifacts, name+".gif"), frames); err != nil {
 			return err
 		}
 	}
-	lit, changed := false, false
-	for _, f := range frames {
-		for i, p := range f.Pixels {
-			lit = lit || p != 0
-			changed = changed || f.Width != frames[0].Width || f.Height != frames[0].Height || i >= len(frames[0].Pixels) || p != frames[0].Pixels[i]
+	lit := false
+	changed := false
+	first := frames[0]
+	for _, frame := range frames {
+		if frame.Width != first.Width || frame.Height != first.Height {
+			changed = true
+		}
+		for i, pixel := range frame.Pixels {
+			if pixel != 0 {
+				lit = true
+			}
+			if i >= len(first.Pixels) || pixel != first.Pixels[i] {
+				changed = true
+			}
 		}
 	}
 	if want.Nonempty && !lit {
@@ -99,8 +116,14 @@ func SaveGIF(path string, frames []awtrix.Frame) error {
 	out := &gif.GIF{LoopCount: 0}
 	for _, frame := range frames {
 		rgba := image.NewRGBA(image.Rect(0, 0, frame.Width, frame.Height))
-		for i, p := range frame.Pixels {
-			rgba.SetRGBA(i%frame.Width, i/frame.Width, color.RGBA{uint8(p >> 16), uint8(p >> 8), uint8(p), 255})
+		for i, pixel := range frame.Pixels {
+			rgb := color.RGBA{
+				R: uint8(pixel >> 16),
+				G: uint8(pixel >> 8),
+				B: uint8(pixel),
+				A: 255,
+			}
+			rgba.SetRGBA(i%frame.Width, i/frame.Width, rgb)
 		}
 		img := image.NewPaletted(rgba.Bounds(), palette.Plan9)
 		draw.FloydSteinberg.Draw(img, img.Rect, rgba, image.Point{})

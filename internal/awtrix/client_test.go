@@ -10,12 +10,14 @@ import (
 )
 
 func TestInstallScriptUsesAtomicCompareAndSwap(t *testing.T) {
+	oldSource := "# Preserve exact whitespace\nreturn Old()\n"
+
 	for _, test := range []struct {
 		name string
 		old  *string
 	}{
 		{"new script", nil},
-		{"existing script", pointer("# Preserve exact whitespace\nreturn Old()\n")},
+		{"existing script", &oldSource},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			updated := false
@@ -59,8 +61,6 @@ func TestInstallScriptUsesAtomicCompareAndSwap(t *testing.T) {
 		})
 	}
 }
-
-func pointer(s string) *string { return &s }
 
 func TestAtomicUpdateNeverFallsBackOnFailure(t *testing.T) {
 	for _, status := range []int{409, 422} {

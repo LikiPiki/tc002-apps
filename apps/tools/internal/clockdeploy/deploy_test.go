@@ -20,9 +20,20 @@ type fakeAPI struct {
 func TestSettingsSavedButRestartFailedIsNotReportedAsUnconfirmed(t *testing.T) {
 	cause := &awtrix.SettingsRestartError{App: "second", Detail: "bad schedule"}
 	api := &fakeAPI{failPhase: "settings", cause: cause}
-	report, err := Run(context.Background(), api, []clockapps.Script{{Name: "second", Kind: "services", Settings: map[string]any{"enabled": true}}})
+	scripts := []clockapps.Script{
+		{
+			Name:     "second",
+			Kind:     "services",
+			Settings: map[string]any{"enabled": true},
+		},
+	}
+	report, err := Run(context.Background(), api, scripts)
 	result := report.Results[0]
-	if !errors.Is(err, cause) || result.Source != "updated" || result.Settings != "applied" || result.FailedPhase != "restart" || result.Verification != "failed" {
+	if !errors.Is(err, cause) ||
+		result.Source != "updated" ||
+		result.Settings != "applied" ||
+		result.FailedPhase != "restart" ||
+		result.Verification != "failed" {
 		t.Fatalf("confirmed settings save was hidden: %+v, %v", result, err)
 	}
 	if strings.Contains(report.String(), "Unconfirmed writes") {
@@ -58,7 +69,10 @@ func TestPartialDeploymentReportsConfirmedAndPendingPhases(t *testing.T) {
 				{Name: "third", Kind: "screens"},
 			}
 			report, err := Run(context.Background(), api, scripts)
-			if !errors.Is(err, cause) || report.Results[0].Verification != "passed" || report.Results[1].FailedPhase != phase || report.Results[2].Source != "not-attempted" {
+			if !errors.Is(err, cause) ||
+				report.Results[0].Verification != "passed" ||
+				report.Results[1].FailedPhase != phase ||
+				report.Results[2].Source != "not-attempted" {
 				t.Fatalf("unexpected failure report: %+v, %v", report, err)
 			}
 			if phase != "source" && report.Results[1].Source != "updated" {
@@ -69,7 +83,8 @@ func TestPartialDeploymentReportsConfirmedAndPendingPhases(t *testing.T) {
 					t.Fatal("batch continued after failure")
 				}
 			}
-			if !strings.Contains(report.String(), "1/3 apps verified") || (phase != "verification" && !strings.Contains(report.String(), "unconfirmed")) {
+			if !strings.Contains(report.String(), "1/3 apps verified") ||
+				(phase != "verification" && !strings.Contains(report.String(), "unconfirmed")) {
 				t.Fatal(report.String())
 			}
 		})
@@ -79,7 +94,8 @@ func TestPartialDeploymentReportsConfirmedAndPendingPhases(t *testing.T) {
 func TestSuccessfulDeploymentDoesNotInventSettingsUpdate(t *testing.T) {
 	api := &fakeAPI{}
 	report, err := Run(context.Background(), api, []clockapps.Script{{Name: "first", Kind: "screens"}})
-	if err != nil || report.Results[0].Settings != "not-configured" || !reflect.DeepEqual(api.calls, []string{"first:source", "first:verification"}) {
+	wantCalls := []string{"first:source", "first:verification"}
+	if err != nil || report.Results[0].Settings != "not-configured" || !reflect.DeepEqual(api.calls, wantCalls) {
 		t.Fatalf("unexpected report: %+v, %v, %v", report, err, api.calls)
 	}
 }

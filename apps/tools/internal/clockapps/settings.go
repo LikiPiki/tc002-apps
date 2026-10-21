@@ -18,6 +18,24 @@ type field struct {
 }
 
 func validateSettings(source []byte, settings map[string]any) error {
+	declared, err := parseFields(source)
+	if err != nil {
+		return err
+	}
+
+	for key, value := range settings {
+		field, ok := declared[key]
+		if !ok {
+			return fmt.Errorf("setting %q has no @config declaration", key)
+		}
+		if err := field.validate(value); err != nil {
+			return fmt.Errorf("setting %q: %w", key, err)
+		}
+	}
+	return nil
+}
+
+func parseFields(source []byte) (map[string]field, error) {
 	declared := map[string]field{}
 	for _, line := range strings.Split(string(source), "\n") {
 		line = strings.TrimSpace(line)
@@ -33,81 +51,117 @@ func validateSettings(source []byte, settings map[string]any) error {
 			continue
 		}
 		if len(words) < 3 || !settingKey.MatchString(words[1]) {
-			return fmt.Errorf("invalid @config declaration: %s", text)
+			return nil, fmt.Errorf("invalid @config declaration: %s", text)
 		}
-		key, typ := words[1], strings.ToLower(words[2])
+
+		key := words[1]
 		if _, ok := declared[key]; ok {
-			return fmt.Errorf("duplicate @config %s", key)
+			return nil, fmt.Errorf("duplicate @config %s", key)
 		}
-		switch typ {
-		case "bool", "text", "select", "number", "slider", "color":
-		default:
-			return fmt.Errorf("unknown @config type %s", typ)
+
+		field, err := parseField(text, words[2])
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", key, err)
 		}
-		f := field{typ, map[string]string{}}
-		for _, match := range attributes.FindAllStringSubmatch(text, -1) {
-			v := match[2]
-			if strings.HasPrefix(v, "\"") {
-				v = strings.Trim(v, "\"")
-			}
-			f.attrs[strings.ToLower(match[1])] = v
+		declared[key] = field
+	}
+	return declared, nil
+}
+
+func parseField(declaration, fieldType string) (field, error) {
+	fieldType = strings.ToLower(fieldType)
+	switch fieldType {
+	case "bool", "text", "select", "number", "slider", "color":
+	default:
+		return field{}, fmt.Errorf("unknown @config type %s", fieldType)
+	}
+
+	parsed := field{
+		typ:   fieldType,
+		attrs: map[string]string{},
+	}
+	for _, match := range attributes.FindAllStringSubmatch(declaration, -1) {
+		value := match[2]
+		if strings.HasPrefix(value, "\"") {
+			value = strings.Trim(value, "\"")
 		}
-		if typ == "slider" && (f.attrs["min"] == "" || f.attrs["max"] == "") {
-			f.attrs["min"], f.attrs["max"] = "0", "100"
+		parsed.attrs[strings.ToLower(match[1])] = value
+	}
+	if fieldType == "slider" && (parsed.attrs["min"] == "" || parsed.attrs["max"] == "") {
+		parsed.attrs["min"] = "0"
+		parsed.attrs["max"] = "100"
+	}
+
+	if err := parsed.validateAttributes(); err != nil {
+		return field{}, err
+	}
+	if err := parsed.validateDefault(); err != nil {
+		return field{}, err
+	}
+	return parsed, nil
+}
+
+func (f field) validateAttributes() error {
+	for _, attribute := range []string{"min", "max", "step", "maxlen"} {
+		raw, exists := f.attrs[attribute]
+		if !exists {
+			continue
 		}
-		for _, attr := range []string{"min", "max", "step", "maxlen"} {
-			if raw, ok := f.attrs[attr]; ok {
-				v, err := strconv.ParseFloat(raw, 64)
-				if err != nil || math.IsNaN(v) || math.IsInf(v, 0) || ((attr == "step" || attr == "maxlen") && v <= 0) || (attr == "maxlen" && v != math.Trunc(v)) {
-					return fmt.Errorf("%s: invalid %s", key, attr)
-				}
-			}
+
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+			return fmt.Errorf("invalid %s: expected a finite number", attribute)
 		}
-		if lo, ok := f.attrs["min"]; ok {
-			if hi, ok := f.attrs["max"]; ok {
-				a, _ := strconv.ParseFloat(lo, 64)
-				b, _ := strconv.ParseFloat(hi, 64)
-				if a > b {
-					return fmt.Errorf("%s: min exceeds max", key)
-				}
-			}
+		if (attribute == "step" || attribute == "maxlen") && value <= 0 {
+			return fmt.Errorf("%s must be positive", attribute)
 		}
-		if typ == "select" && f.attrs["options"] == "" {
-			return fmt.Errorf("%s: select requires options", key)
-		}
-		declared[key] = f
-		if raw, ok := f.attrs["default"]; ok {
-			var v any = raw
-			switch typ {
-			case "bool":
-				switch strings.ToLower(raw) {
-				case "true", "1", "yes", "on":
-					v = true
-				case "false", "0", "no", "off":
-					v = false
-				default:
-					return fmt.Errorf("%s: invalid boolean default", key)
-				}
-			case "number", "slider":
-				n, err := strconv.ParseFloat(raw, 64)
-				if err != nil {
-					return fmt.Errorf("%s: invalid numeric default", key)
-				}
-				v = n
-			}
-			if err := f.validate(v); err != nil {
-				return fmt.Errorf("%s default: %w", key, err)
-			}
+		if attribute == "maxlen" && value != math.Trunc(value) {
+			return fmt.Errorf("maxlen must be an integer")
 		}
 	}
-	for key, value := range settings {
-		f, ok := declared[key]
-		if !ok {
-			return fmt.Errorf("setting %q has no @config declaration", key)
+
+	minimum, hasMinimum := f.attrs["min"]
+	maximum, hasMaximum := f.attrs["max"]
+	if hasMinimum && hasMaximum {
+		lower, _ := strconv.ParseFloat(minimum, 64)
+		upper, _ := strconv.ParseFloat(maximum, 64)
+		if lower > upper {
+			return fmt.Errorf("min exceeds max")
 		}
-		if err := f.validate(value); err != nil {
-			return fmt.Errorf("setting %q: %w", key, err)
+	}
+	if f.typ == "select" && f.attrs["options"] == "" {
+		return fmt.Errorf("select requires options")
+	}
+	return nil
+}
+
+func (f field) validateDefault() error {
+	raw, exists := f.attrs["default"]
+	if !exists {
+		return nil
+	}
+
+	var value any = raw
+	switch f.typ {
+	case "bool":
+		switch strings.ToLower(raw) {
+		case "true", "1", "yes", "on":
+			value = true
+		case "false", "0", "no", "off":
+			value = false
+		default:
+			return fmt.Errorf("invalid boolean default")
 		}
+	case "number", "slider":
+		number, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return fmt.Errorf("invalid numeric default")
+		}
+		value = number
+	}
+
+	if err := f.validate(value); err != nil {
+		return fmt.Errorf("default: %w", err)
 	}
 	return nil
 }

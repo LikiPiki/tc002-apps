@@ -44,6 +44,8 @@ Register per-app settings under `clock.<category>.<name>` in TOML (`on_demand` f
 
 ## Before opening a pull request
 
+Keep code readable before running a formatter: one operation per line, blank lines between logical steps, descriptive names for domain values, and multiline literals for nontrivial structs and test cases. Split long functions by responsibility and handle request-decoding errors in test servers. Go code must pass `gofmt`; Berry code uses two-space indentation and multiline methods.
+
 - Run `make check` and `make build` for Go changes.
 - Build affected Docker images when changing container or deployment files.
 - Run `make dev-check` when changing the HTTP integration or development environment.

@@ -29,50 +29,68 @@ type Plan struct {
 }
 
 func Equal(a, b any) bool {
-	x, _ := json.Marshal(a)
-	y, _ := json.Marshal(b)
-	return string(x) == string(y)
+	left, _ := json.Marshal(a)
+	right, _ := json.Marshal(b)
+	return string(left) == string(right)
 }
 
 func Prepare(ctx context.Context, c *awtrix.Client, target string, scripts []clockapps.Script) (Plan, error) {
-	p := Plan{Target: target}
-	caps, err := c.Capabilities(ctx)
+	plan := Plan{Target: target}
+	capabilities, err := c.Capabilities(ctx)
 	if err != nil {
-		return p, err
+		return plan, err
 	}
-	if caps["scriptUpdates"] != true {
-		return p, fmt.Errorf("target lacks atomic script updates")
+	if capabilities["scriptUpdates"] != true {
+		return plan, fmt.Errorf("target lacks atomic script updates")
 	}
+
 	apps, err := c.Scripts(ctx)
 	if err != nil {
-		return p, err
+		return plan, err
 	}
-	for _, s := range scripts {
-		before, err := c.Source(ctx, s.Name)
+
+	for _, script := range scripts {
+		change, err := prepareChange(ctx, c, script, apps)
 		if err != nil {
-			return p, err
+			return plan, err
 		}
-		ch := Change{Name: s.Name, Before: before, After: string(s.Source), SettingsAfter: s.Settings, Enabled: true}
-		if before != nil {
-			ch.SettingsBefore, err = c.ScriptSettings(ctx, s.Name)
-			if err != nil {
-				return p, err
-			}
-			for _, app := range apps {
-				if app.Name == s.Name && app.Origin == "script" {
-					ch.Enabled = app.Enabled
-				}
-			}
-		}
-		ch.SourceChanged = before == nil || *before != ch.After
-		for k, v := range s.Settings {
-			if !Equal(ch.SettingsBefore[k], v) {
-				ch.SettingsChanged = true
-			}
-		}
-		p.Changes = append(p.Changes, ch)
+		plan.Changes = append(plan.Changes, change)
 	}
-	return p, nil
+	return plan, nil
+}
+
+func prepareChange(ctx context.Context, client *awtrix.Client, script clockapps.Script, apps []awtrix.ScriptInfo) (Change, error) {
+	before, err := client.Source(ctx, script.Name)
+	if err != nil {
+		return Change{}, err
+	}
+
+	change := Change{
+		Name:          script.Name,
+		Before:        before,
+		After:         string(script.Source),
+		SettingsAfter: script.Settings,
+		Enabled:       true,
+	}
+	if before != nil {
+		change.SettingsBefore, err = client.ScriptSettings(ctx, script.Name)
+		if err != nil {
+			return change, err
+		}
+		for _, app := range apps {
+			if app.Name == script.Name && app.Origin == "script" {
+				change.Enabled = app.Enabled
+			}
+		}
+	}
+
+	change.SourceChanged = before == nil || *before != change.After
+	for key, value := range script.Settings {
+		if !Equal(change.SettingsBefore[key], value) {
+			change.SettingsChanged = true
+		}
+	}
+	return change, nil
 }
 
 func (p Plan) String() string {
@@ -89,6 +107,7 @@ func (p Plan) Save(path string) error {
 	if err != nil {
 		return err
 	}
+
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
@@ -105,16 +124,18 @@ func (p Plan) Save(path string) error {
 }
 
 func LoadPlan(path, target string) (Plan, error) {
-	var p Plan
+	var plan Plan
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return p, err
+		return plan, err
 	}
-	err = json.Unmarshal(data, &p)
-	if err == nil && p.Target != target {
-		err = fmt.Errorf("backup target %q differs from %q", p.Target, target)
+	if err := json.Unmarshal(data, &plan); err != nil {
+		return plan, err
 	}
-	return p, err
+	if plan.Target != target {
+		return plan, fmt.Errorf("backup target %q differs from %q", plan.Target, target)
+	}
+	return plan, nil
 }
 
 func verify(ctx context.Context, c *awtrix.Client, name string, window time.Duration) error {
@@ -135,60 +156,91 @@ func verify(ctx context.Context, c *awtrix.Client, name string, window time.Dura
 }
 
 // Apply stops on first failure. The returned report preserves confirmed phases.
-func (p Plan) Apply(ctx context.Context, c *awtrix.Client, window time.Duration) (Report, error) {
-	r := Report{}
-	for _, ch := range p.Changes {
-		r.Results = append(r.Results, Result{Name: ch.Name, Source: "not-attempted", Settings: "not-run", Verification: "not-run"})
+func (p Plan) Apply(ctx context.Context, client *awtrix.Client, window time.Duration) (Report, error) {
+	report := Report{}
+	for _, change := range p.Changes {
+		report.Results = append(report.Results, Result{
+			Name:         change.Name,
+			Source:       "not-attempted",
+			Settings:     "not-run",
+			Verification: "not-run",
+		})
 	}
-	for i, ch := range p.Changes {
-		result := &r.Results[i]
-		result.Source = "unchanged"
-		if ch.SourceChanged {
-			result.Source = "unconfirmed"
-			if err := c.UpdateScript(ctx, ch.Name, ch.Before, []byte(ch.After)); err != nil {
-				result.FailedPhase = "source"
-				return r, err
-			}
-			result.Source = "updated"
+
+	for i, change := range p.Changes {
+		if err := change.apply(ctx, client, window, &report.Results[i]); err != nil {
+			return report, err
 		}
-		result.Settings = "unchanged"
-		if !ch.SourceChanged {
-			current, err := c.Source(ctx, ch.Name)
-			if err != nil {
-				return r, err
-			}
-			if !Equal(current, ch.Before) {
-				result.FailedPhase = "source-conflict"
-				return r, fmt.Errorf("%s changed since planning", ch.Name)
-			}
+	}
+	return report, nil
+}
+
+func (change Change) apply(ctx context.Context, client *awtrix.Client, window time.Duration, result *Result) error {
+	if err := change.applySource(ctx, client, result); err != nil {
+		return err
+	}
+	if err := change.applySettings(ctx, client, result); err != nil {
+		return err
+	}
+
+	if !change.Enabled {
+		result.Verification = "disabled"
+		return nil
+	}
+	if err := verify(ctx, client, change.Name, window); err != nil {
+		result.Verification = "failed"
+		result.FailedPhase = "verification"
+		return err
+	}
+	result.Verification = "passed"
+	return nil
+}
+
+func (change Change) applySource(ctx context.Context, client *awtrix.Client, result *Result) error {
+	if change.SourceChanged {
+		result.Source = "unconfirmed"
+		if err := client.UpdateScript(ctx, change.Name, change.Before, []byte(change.After)); err != nil {
+			result.FailedPhase = "source"
+			return err
 		}
-		// A new schema may reset settings even when old values matched.
-		if len(ch.SettingsAfter) > 0 && (ch.SettingsChanged || ch.SourceChanged) {
-			result.Settings = "unconfirmed"
-			if err := c.ConfigureScript(ctx, ch.Name, ch.SettingsAfter); err != nil {
-				result.FailedPhase = "settings"
-				var restart *awtrix.SettingsRestartError
-				if errors.As(err, &restart) {
-					result.Settings = "applied"
-					result.FailedPhase = "restart"
-					result.Verification = "failed"
-				}
-				return r, err
-			}
+		result.Source = "updated"
+		return nil
+	}
+
+	result.Source = "unchanged"
+	current, err := client.Source(ctx, change.Name)
+	if err != nil {
+		return err
+	}
+	if !Equal(current, change.Before) {
+		result.FailedPhase = "source-conflict"
+		return fmt.Errorf("%s changed since planning", change.Name)
+	}
+	return nil
+}
+
+func (change Change) applySettings(ctx context.Context, client *awtrix.Client, result *Result) error {
+	result.Settings = "unchanged"
+
+	// A new schema may reset settings even when old values matched.
+	needsUpdate := change.SettingsChanged || change.SourceChanged
+	if len(change.SettingsAfter) == 0 || !needsUpdate {
+		return nil
+	}
+
+	result.Settings = "unconfirmed"
+	if err := client.ConfigureScript(ctx, change.Name, change.SettingsAfter); err != nil {
+		result.FailedPhase = "settings"
+		var restart *awtrix.SettingsRestartError
+		if errors.As(err, &restart) {
 			result.Settings = "applied"
-		}
-		if !ch.Enabled {
-			result.Verification = "disabled"
-			continue
-		}
-		if err := verify(ctx, c, ch.Name, window); err != nil {
+			result.FailedPhase = "restart"
 			result.Verification = "failed"
-			result.FailedPhase = "verification"
-			return r, err
 		}
-		result.Verification = "passed"
+		return err
 	}
-	return r, nil
+	result.Settings = "applied"
+	return nil
 }
 
 // Rollback restores existing scripts and their declared settings. Newly installed
@@ -203,9 +255,9 @@ func (p Plan) Rollback(ctx context.Context, c *awtrix.Client) error {
 		if err != nil {
 			return err
 		}
-		if Equal(current, ch.Before) {
-			// Settings may still need restoration after a settings-only deployment.
-		} else if current == nil || *current != ch.After {
+		sourceUnchanged := Equal(current, ch.Before)
+		sourceDeployed := current != nil && *current == ch.After
+		if !sourceUnchanged && !sourceDeployed {
 			return fmt.Errorf("%s changed since deployment; rollback stopped", ch.Name)
 		}
 		if ch.Before == nil {

@@ -79,7 +79,8 @@ func (r Report) String() string {
 	}
 	fmt.Fprintf(&out, "Deployment: %d/%d apps verified\n", verified, len(r.Results))
 	for _, result := range r.Results {
-		fmt.Fprintf(&out, "  %s/%s: source=%s settings=%s verification=%s", result.Kind, result.Name, result.Source, result.Settings, result.Verification)
+		fmt.Fprintf(&out, "  %s/%s: source=%s settings=%s verification=%s",
+			result.Kind, result.Name, result.Source, result.Settings, result.Verification)
 		if result.FailedPhase != "" {
 			fmt.Fprintf(&out, " FAILED at %s", result.FailedPhase)
 		}

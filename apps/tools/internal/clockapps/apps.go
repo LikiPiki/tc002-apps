@@ -165,7 +165,10 @@ func validateHeader(kind string, source []byte, settings map[string]any) error {
 			onDemand = true
 		}
 	}
-	if (headless && onDemand) || (kind == "services" && !headless) || (kind == "on-demand" && !onDemand) || (kind == "screens" && (headless || onDemand)) || (kind == "services" && onDemand) || (kind == "on-demand" && headless) {
+	if (headless && onDemand) ||
+		(kind == "services" && (!headless || onDemand)) ||
+		(kind == "on-demand" && (!onDemand || headless)) ||
+		(kind == "screens" && (headless || onDemand)) {
 		return fmt.Errorf("Berry lifecycle markers do not match directory kind %s", kind)
 	}
 	return validateSettings(source, settings)

@@ -21,18 +21,33 @@ func fixture(t *testing.T, path, content string) {
 func TestPersonalOverridesMergeAcrossSections(t *testing.T) {
 	dir := t.TempDir()
 	base, personal := filepath.Join(dir, "config.toml"), filepath.Join(dir, "local.toml")
-	fixture(t, base, "[clock]\nurl = \"http://localhost:8080\"\n[clock.deploy]\nscreens = [\"cigar\"]\n[server]\napps = [\"worker\"]\n[server.worker]\ninterval = \"1m\"\n")
+	fixture(t, base, `[clock]
+url = "http://localhost:8080"
+[clock.deploy]
+screens = ["cigar"]
+[server]
+apps = ["worker"]
+[server.worker]
+interval = "1m"
+`)
 	fixture(t, personal, "[clock]\nurl = \"http://192.168.1.50\"\n[server.worker]\ninterval = \"30s\"\n")
 	c, err := Load(base, personal)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Clock.URL != "http://192.168.1.50" || c.Server.Worker.Interval != "30s" || !reflect.DeepEqual(c.Clock.Deploy.Screens, []string{"cigar"}) || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
+	if c.Clock.URL != "http://192.168.1.50" ||
+		c.Server.Worker.Interval != "30s" ||
+		!reflect.DeepEqual(c.Clock.Deploy.Screens, []string{"cigar"}) ||
+		!reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
 		t.Fatalf("unexpected merged config: %+v", c)
 	}
 	fixture(t, personal, "[clock.deploy]\nscreens = [\"*\"]\nservices = []\non_demand = []\n")
 	c, err = Load(base, personal)
-	if err != nil || c.Clock.Deploy.Screens != nil || c.Clock.Deploy.Services == nil || c.Clock.URL != "http://localhost:8080" || len(c.Server.Apps) != 1 {
+	if err != nil ||
+		c.Clock.Deploy.Screens != nil ||
+		c.Clock.Deploy.Services == nil ||
+		c.Clock.URL != "http://localhost:8080" ||
+		len(c.Server.Apps) != 1 {
 		t.Fatalf("wildcard must reset only clock selection: %+v, %v", c, err)
 	}
 	if _, err := Load(base, filepath.Join(dir, "missing.toml")); err != nil {
@@ -45,9 +60,12 @@ func TestPersonalOverridesMergeAcrossSections(t *testing.T) {
 
 func TestRejectInvalidConfig(t *testing.T) {
 	for _, content := range []string{
-		"[clock]\napps = []", "[clock]\napp = [\"cigar\"]",
-		"[clock.deploy]\nscreens = \"cigar\"", "[server]\napps = true",
-		"[clock]\nurl = [", "[server.worker]\ninterval = 12",
+		"[clock]\napps = []",
+		"[clock]\napp = [\"cigar\"]",
+		"[clock.deploy]\nscreens = \"cigar\"",
+		"[server]\napps = true",
+		"[clock]\nurl = [",
+		"[server.worker]\ninterval = 12",
 	} {
 		path := filepath.Join(t.TempDir(), "config.toml")
 		fixture(t, path, content)
