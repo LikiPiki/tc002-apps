@@ -4,7 +4,7 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 if [ ! -f "$ROOT/configs/config.toml" ]; then
-    printf '%s\n' 'Missing configs/config.toml; deploy the shared project config first.' >&2
+    printf '%s\n' 'Missing configs/config.toml; run make init-config and configure your clocks/location first.' >&2
     exit 1
 fi
 

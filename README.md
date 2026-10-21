@@ -51,7 +51,7 @@ tc002-apps/
 │   ├── awtrix/                    HTTP API client; no display-checking loops
 │   └── config/                    TOML parsing/merging; no source discovery
 ├── configs/
-│   ├── config.toml                Shared clock, build, and runtime settings
+│   ├── config.toml.example        Versioned template for the local working config
 │   └── config.local.toml.example  Personal project config template
 ├── deploy/                        PRODUCTION — run Go services on your VPS
 │   ├── compose.yaml               Services, images, and runtime settings
@@ -83,13 +83,14 @@ Generated locally (not committed):
   bin/<group>/<app>               Native binaries (server or tools)
   dist/<group>/<app>.tar.gz       Exported images, separated by group
   configs/config.local.toml       Your clock, app selections, and runtime overrides
+  configs/config.toml             Local working config; never versioned or baked into images
 ```
 
 ### Where to start
 
 | I want to... | Start here | First step |
 | --- | --- | --- |
-| Try it without a clock | [Local development](docs/development.md) | After cloning, run `make dev-check` and open http://localhost:8080 |
+| Try it without a clock | [Local development](docs/development.md) | Run `make init-config`, then `make dev-check` and open http://localhost:8080 |
 | Debug a local server with my physical clock | [LAN development](docs/development.md#local-server-with-physical-clocks) | Set the clock IP/location in personal config, then run `make lan` and `make lan-logs` |
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
@@ -133,6 +134,7 @@ Clone the repository first:
 ```sh
 git clone https://github.com/LikiPiki/tc002-apps.git
 cd tc002-apps
+make init-config # Creates config.toml only if it is absent.
 ```
 
 ### Native Go
@@ -151,7 +153,7 @@ The notification command needs a reachable AWTRIX NG instance without API authen
 
 ### Build the complete server
 
-All settings use `configs/config.toml` and optional `configs/config.local.toml`. The server always includes all server features in one binary/image. `[tools] apps` selects independent utilities; `[clock.deploy]` selects Berry screens, services and on-demand apps. See [configuration](docs/configuration.md).
+All settings use local `configs/config.toml` and optional `configs/config.local.toml`. Create the working file once with `make init-config`; only `.example` templates are versioned, and existing files are preserved. The server always includes all server features in one binary/image. See [configuration](docs/configuration.md).
 
 ```sh
 make build-server        # Complete bin/server/tc002-server
@@ -167,8 +169,8 @@ Server builds have no per-feature selection, generated app sets or feature-speci
 ### Deploy Berry apps to the clock
 
 ```sh
-cp configs/config.local.toml.example configs/config.local.toml
-# Set [clock] urls in configs/config.local.toml.
+make init-config
+# Set [clock] urls or profiles in configs/config.toml.
 make clock-list
 make clock-deploy          # Apps selected by category in TOML
 make clock-deploy KIND=services
@@ -177,12 +179,12 @@ make clock-start APP=<tool> # Start an installed on-demand app
 make clock-stop APP=<tool>  # End its session
 ```
 
-Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Settings live in `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>`. Shared TOML defaults to the local virtual clock; personal overrides are excluded from Git. To use shared defaults alone, pass `LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment) for error checks.
+Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Settings live in `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>`. Working configs and local profiles are excluded from Git. For template-only virtual settings, pass `CONFIG=configs/config.toml.example LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment).
 
 ## Docker
 
 ```sh
-# Configure configs/config.local.toml before sending to a physical clock.
+# Configure configs/config.toml before sending to physical clocks.
 sh deploy/deploy.sh
 docker compose -f deploy/compose.yaml logs -f server
 ```

@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+env:
+  CONFIG: configs/config.toml.example
+  LOCAL_CONFIG: ""
+
 jobs:
   binaries:
     runs-on: ubuntu-latest

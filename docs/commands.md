@@ -2,7 +2,7 @@
 
 ## Standalone device management
 
-With an explicit `--url` or `AWTRIX_URL`, notification, show/start/stop, rollback, doctor and status commands work outside a checkout even if the implicit shared config is absent. Existing or explicitly selected config files are still validated. `--config '' --local-config ''` explicitly disables file loading. Catalog commands accept `--apps-dir /path/to/apps/clock` along with absolute config paths.
+With an explicit `--url` or `AWTRIX_URL`, notification, show/start/stop, rollback, doctor and status commands work outside a checkout even if the implicit working config is absent. Existing or explicitly selected config files are still validated. `--config '' --local-config ''` explicitly disables file loading. Catalog commands accept `--apps-dir /path/to/apps/clock` along with absolute config paths.
 
 ```sh
 clockctl --url http://192.168.1.50 --text 'Hello'
@@ -27,7 +27,7 @@ Each clock gets its profile's selected apps/settings and its own plan, phase rep
 
 Run commands from the repository root. Utility commands live in `apps/tools/`; independent VPS programs live in `apps/server/`. Both can run natively or in their separate Docker images. Native commands require Go 1.24+; Docker workflows require Docker with Compose v2.
 
-Both commands read `configs/config.toml` and optional `configs/config.local.toml`. See [Project configuration](configuration.md) for the schema, merging, paths, and Docker mounts.
+Both commands read local `configs/config.toml` and optional `configs/config.local.toml`. Run `make init-config` once to create the working file from its versioned example; existing files are preserved. See [configuration](configuration.md) for merging and read-only mounts.
 
 ## clockctl notifications
 
@@ -42,7 +42,7 @@ go run ./apps/tools/cmd/clockctl --url http://192.168.1.50 --text 'Hello TC002'
 | --- | --- | --- |
 | `--url` | `AWTRIX_URL`, then TOML `clock.urls` (or legacy `clock.url`) | Single-clock override; IP/hostname or HTTP(S) URL |
 | `--text` | `Hello from Go` | Notification text |
-| `--config` | `configs/config.toml` | Shared config; default path can use `TC002_CONFIG` |
+| `--config` | `configs/config.toml` | Local working config; default path can use `TC002_CONFIG` |
 | `--local-config` | `configs/config.local.toml` | Optional overrides; empty disables them; default path can use `TC002_LOCAL_CONFIG` |
 
 The client identifies each AWTRIX endpoint, then posts to `/api/v1/notifications`, with a 10-second budget per clock. Invalid/unreachable/non-clock targets are skipped with warnings. Any successful target makes partial delivery successful; if all fail, the command exits nonzero. Authentication is not implemented yet.
@@ -76,8 +76,8 @@ The list/deploy/show/start/stop Make commands require Go; `clock-check` requires
 
 ```sh
 make dev
-make clock-deploy LOCAL_CONFIG=
-make clock-show APP=mackerel LOCAL_CONFIG=
+make clock-deploy CONFIG=configs/config.toml.example LOCAL_CONFIG=
+make clock-show APP=mackerel CONFIG=configs/config.toml.example LOCAL_CONFIG=
 ```
 
 Keep `AWTRIX_URL` unset when relying on config URLs. To explicitly override the target, use `AWTRIX_URL=http://localhost:8080 make clock-deploy`.
@@ -130,7 +130,7 @@ go run ./apps/server/cmd/server --version
 | `--once` | `false` | Perform one server update and exit |
 | `--print` | `false` | Fetch one reading for JSON inspection without clock writes |
 | `--version` | | Print server version and commit |
-| `--config` | `configs/config.toml` | Shared project config |
+| `--config` | `configs/config.toml` | Local working config |
 | `--local-config` | `configs/config.local.toml` | Optional personal config; empty disables it |
 
 The first update happens immediately. SIGINT or SIGTERM stops continuous mode gracefully. Weather timing is configured in `[server.weather]`, not by selecting a separate process or image. `make lan`, `make lan-once` and `make lan-logs` operate on this same complete server.

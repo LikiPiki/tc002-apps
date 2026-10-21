@@ -15,10 +15,11 @@ LDFLAGS = -s -w \
 	-X github.com/LikiPiki/tc002-apps/internal/buildinfo.Commit=$(COMMIT)
 export TEXT CONFIG LOCAL_CONFIG APP KIND CHECK_DURATION CHECK_BUILD CHECK_ALL VERSION COMMIT
 
-.PHONY: help check build build-server build-tools docker-build docker-build-server docker-build-tools docker-save docker-save-server docker-save-tools list-tools dev dev-build dev-server dev-down dev-logs dev-notify dev-check clock-list clock-deploy clock-show clock-start clock-stop clock-check
+.PHONY: help init-config check build build-server build-tools docker-build docker-build-server docker-build-tools docker-save docker-save-server docker-save-tools list-tools dev dev-build dev-server dev-down dev-logs dev-notify dev-check clock-list clock-deploy clock-show clock-start clock-stop clock-check
 
 help:
 	@printf '%s\n' \
+		'make init-config    Create local config.toml once; preserve an existing file' \
 		'make list-tools     Show selected utility commands' \
 		'make check          Go format, vet and tests' \
 		'make build          Build the complete server' \
@@ -52,6 +53,9 @@ help:
 		'make clock-start APP=<name>  Start an installed on-demand app' \
 		'make clock-stop APP=<name>   Stop the current on-demand app' \
 		'Use KIND=screens|services|on-demand to filter catalog commands and clock-check'
+
+init-config:
+	sh scripts/init-config.sh "$$CONFIG"
 
 clock-check:
 	sh scripts/check-clock.sh

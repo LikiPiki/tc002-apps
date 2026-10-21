@@ -7,6 +7,11 @@ on:
 permissions:
   contents: read
 
+# Checks use a tracked example, never a developer's untracked working config.
+env:
+  CONFIG: configs/config.toml.example
+  LOCAL_CONFIG: ""
+
 jobs:
   go:
     runs-on: ubuntu-latest

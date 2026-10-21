@@ -14,9 +14,12 @@ Use `make clock-check CHECK_ALL=true LOCAL_CONFIG=` to exercise all catalog apps
 
 Run these commands from the repository root:
 
+Run `make init-config` once after cloning. Existing working configs are preserved. Deterministic checks can instead use `CONFIG=configs/config.toml.example LOCAL_CONFIG=`.
+
 | Command | Purpose |
 | --- | --- |
 | `make help` | List the main commands |
+| `make init-config` | Create a local config once without overwriting existing settings |
 | `make check` | Check Go formatting, run vet and tests |
 | `make list-tools` | Show selected utility commands |
 | `make build` | Build the complete server |
@@ -121,7 +124,7 @@ You can also run the Go client directly on your computer:
 AWTRIX_URL=http://localhost:8080 go run ./apps/tools/cmd/clockctl --text 'Native Go works'
 ```
 
-Upload Berry apps from `apps/clock/` with `make clock-deploy LOCAL_CONFIG=` and show one with `make clock-show APP=mackerel LOCAL_CONFIG=`. These commands use the shared local URL without personal overrides; leave `AWTRIX_URL` unset. You can also use the Scripts tab. Dev containers ignore personal overrides and use the shared project TOML; their virtual-clock network address is set by Compose. See [configuration](configuration.md) and [Berry deployment](commands.md#berry-deployment).
+For a template-only virtual preview, use `make clock-deploy CONFIG=configs/config.toml.example LOCAL_CONFIG=` and the equivalent `clock-show`. These explicitly select example settings rather than your working config; leave `AWTRIX_URL` unset. Dev containers read mounted configs and use the virtual-clock address set by Compose. See [configuration](configuration.md) and [Berry deployment](commands.md#berry-deployment).
 
 ## Runtime checks
 
@@ -144,7 +147,7 @@ Temporary containers, networks, and data are removed on success or failure. The 
 
 The CLI `check` subcommand is an internal runner: it requires the Compose sandbox marker, accepts only the fixed `http://awtrix-check:8080` endpoint, and verifies `boardType=linux` before any script writes. A direct `clockctl check --url <device>` invocation is rejected before contacting the device. Use `make clock-check`, not a custom check URL.
 
-CI runs the same check in a dedicated `berry` job. Buildx caches the pinned AWTRIX build and the Go runner separately using GitHub Actions cache. The job loads both images, then runs `make clock-check CHECK_BUILD=0 LOCAL_CONFIG=`. Normal local runs build images by default; `CHECK_BUILD=0` is for prebuilt images. This checks runtime errors and frames, not animation quality or hardware behavior.
+CI runs the same check using `CONFIG=configs/config.toml.example LOCAL_CONFIG=` in a dedicated `berry` job. Buildx caches AWTRIX and runner images separately. No working/personal config is needed in the checkout or image. Normal local runs build images by default; `CHECK_BUILD=0` is for prebuilt images. This checks runtime errors and frames, not animation quality or hardware behavior.
 
 ### Go integration smoke check
 

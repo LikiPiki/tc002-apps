@@ -48,7 +48,7 @@ func Paths(flags *flag.FlagSet) (base, personal *string) {
 		localPath = "configs/config.local.toml"
 	}
 
-	return flags.String("config", basePath, "shared project TOML config"),
+	return flags.String("config", basePath, "local working TOML config"),
 		flags.String("local-config", localPath, "optional personal TOML overrides; empty disables them")
 }
 
@@ -79,6 +79,10 @@ func Load(base, personal string) (Config, error) {
 			continue
 		}
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return c, fmt.Errorf("config %s is missing; create it from configs/config.toml.example with make init-config: %w", path, err)
+			}
+
 			return c, err
 		}
 

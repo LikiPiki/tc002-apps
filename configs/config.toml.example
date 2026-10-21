@@ -1,0 +1,27 @@
+# Working configuration template. Run make init-config once to create config.toml.
+# Existing working configs are never overwritten by initialization or deployment.
+[clock]
+urls = ["http://localhost:8080"]
+
+[clock.deploy]
+screens = ["*"]
+services = ["display-policy"]
+on_demand = ["*"]
+
+[clock.services.display-policy]
+schedule_enabled = false
+on = "10:00"
+off = "20:00"
+
+[server.weather]
+# Set your coordinates here or in the optional config.local.toml override.
+label = "HOME"
+timezone = "auto"
+screens = ["weather-current", "weather-forecast"]
+interval = "15m"
+timeout = "15s"
+ttl = "2h"
+attempts = 3
+
+[tools]
+apps = ["*"]

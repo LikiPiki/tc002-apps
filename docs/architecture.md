@@ -52,7 +52,7 @@ Keep independent failure domains separate. Group related rules under the owner o
 
 ## Configuration model
 
-`configs/config.toml` contains shared defaults. Optional `config.local.toml` overrides only specified fields. Both native commands and containers use `internal/config` to read the same schema.
+`configs/config.toml.example` is the tracked template. `make init-config` exclusively creates a local, ignored `config.toml` and preserves existing files. Optional `config.local.toml` overrides fields. Images ship the example only; runtime settings come from the read-only mount. Native commands and containers use the same schema.
 
 - `clock.deploy.screens/services/on_demand` select upload artifacts.
 - `clock.screens.<name>`, `clock.services.<name>`, and `clock.on_demand.<name>` contain app settings.

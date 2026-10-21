@@ -38,6 +38,6 @@ make clock-stop APP=<tool>
 make clock-check
 ```
 
-For manual local preview, run `make dev`, then deploy with `LOCAL_CONFIG=` and leave `AWTRIX_URL` unset. `clock-check` always uses its own disposable local target.
+For manual local preview, run `make dev`, then deploy with `CONFIG=configs/config.toml.example LOCAL_CONFIG=` and leave `AWTRIX_URL` unset. `clock-check` always uses its own disposable local target.
 
 See [configuration](../../docs/configuration.md), [architecture](../../docs/architecture.md), and [commands](../../docs/commands.md).

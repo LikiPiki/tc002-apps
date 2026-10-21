@@ -14,7 +14,8 @@ FROM alpine:3.22 AS runtime
 RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
 COPY --from=build /out/tc002-server /usr/local/bin/tc002-server
 WORKDIR /app
-COPY configs/config.toml ./configs/config.toml
+# Ship only the example. Runtime settings come from the read-only config mount.
+COPY configs/config.toml.example ./configs/config.toml.example
 USER app
 ENTRYPOINT ["/usr/local/bin/tc002-server"]
 
