@@ -24,4 +24,11 @@ FROM runtime AS integration
 COPY --from=integration-build /out/status-check /usr/local/bin/status-check
 ENTRYPOINT ["/usr/local/bin/status-check", "-test.v", "-test.run=TestClockIntegration"]
 
+FROM build AS weather-integration-build
+RUN CGO_ENABLED=0 go test -c -o /out/weather-check ./apps/server/internal/weatherprovider
+
+FROM runtime AS weather-integration
+COPY --from=weather-integration-build /out/weather-check /usr/local/bin/weather-check
+ENTRYPOINT ["/usr/local/bin/weather-check", "-test.v", "-test.run=TestWeatherClockIntegration"]
+
 FROM runtime AS app

@@ -26,5 +26,15 @@ timeout = "5s" # Total budget for all probe attempts.
 ttl = "90s"
 attempts = 3
 
+[server.weather]
+# Set latitude/longitude in config.local.toml before starting weather-provider.
+label = "HOME"
+timezone = "auto"
+screens = ["weather-current", "weather-forecast"]
+interval = "15m"
+timeout = "15s"
+ttl = "2h"
+attempts = 3
+
 [tools]
 apps = ["*"] # CLI utilities, built separately from VPS services.

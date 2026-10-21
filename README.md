@@ -4,11 +4,12 @@ Apps for Ulanzi TC002 running AWTRIX NG, with Go services for processing data an
 
 ## Current status
 
-This repository is a small toolkit with autonomous clock apps and an HTTP health integration:
+This repository is a small toolkit with autonomous clock apps, weather and HTTP health integrations:
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
 - `status-provider` checks an HTTP health endpoint and publishes to the `service-status` screen with explicit data expiry. See [setup and contract](docs/integrations/service-status.md).
+- `weather-provider` fetches Open-Meteo current conditions and three-day forecasts for two separate screens. It can also print weather directly on the VPS. See [weather setup](docs/integrations/weather.md).
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
 
@@ -93,6 +94,7 @@ Generated locally (not committed):
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
 | Process data on my VPS | [Server apps](apps/server/README.md) | Add `apps/server/cmd/<name>/main.go` |
+| Show weather on the VPS and clock | [Weather integration](docs/integrations/weather.md) | Configure coordinates, run `weather-provider --print`, then deploy the two screens |
 | Manage clocks or development workflows | [Utility apps](apps/tools/README.md) | Use `clockctl` or the Make commands |
 | Build and deploy only selected Go apps | [VPS deployment](docs/deployment.md) | Set `server.apps`, then run `make docker-save GROUP=server` |
 | Plan a screen/VPS integration (alpha) | [Integration design](docs/integrations.md) | Explore the ID/contract convention; automatic pairing is not implemented |

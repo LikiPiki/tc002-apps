@@ -70,6 +70,18 @@ jobs:
           cache-to: type=gha,mode=max,scope=status-check-runner
       - name: Check status producer and screen
         run: make status-check CHECK_BUILD=0
+      - name: Build cached weather integration runner
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/server/Dockerfile
+          target: weather-integration
+          load: true
+          tags: tc002-apps/server/weather-check:local
+          cache-from: type=gha,scope=weather-check-runner
+          cache-to: type=gha,mode=max,scope=weather-check-runner
+      - name: Check weather producer and both screens
+        run: make weather-check CHECK_BUILD=0
       - uses: actions/upload-artifact@v4
         if: always()
         with:

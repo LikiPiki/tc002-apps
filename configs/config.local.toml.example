@@ -23,5 +23,12 @@ url = "http://192.168.1.50"
 # interval = "30s"
 # ttl = "90s"
 
+# [server.weather]
+# latitude = 59.9386
+# longitude = 30.3141
+# label = "SPB"
+# timezone = "Europe/Moscow" # Or "auto" to use the coordinates' timezone.
+# screens = ["weather-current", "weather-forecast"]
+
 # [tools]
 # apps = ["clockctl"] # Use [] to skip utility build artifacts.

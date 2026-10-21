@@ -175,3 +175,24 @@ func TestStatusSettingsMergeByField(t *testing.T) {
 		t.Fatalf("unexpected merged status settings: %+v", status)
 	}
 }
+
+func TestWeatherSettingsMergeWithoutResettingLocation(t *testing.T) {
+	dir := t.TempDir()
+	base := filepath.Join(dir, "base.toml")
+	personal := filepath.Join(dir, "personal.toml")
+	fixture(t, base, "[server.weather]\nlatitude = 0.0\nlongitude = 37.62\nlabel = \"HOME\"\n")
+	fixture(t, personal, "[server.weather]\nlabel = \"MOSCOW\"\nscreens = [\"weather-current\"]\n")
+
+	project, err := Load(base, personal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	weather := project.Server.Weather
+	if weather.Latitude == nil || *weather.Latitude != 0 ||
+		weather.Longitude == nil || *weather.Longitude != 37.62 ||
+		weather.Label != "MOSCOW" || weather.Interval != "15m" ||
+		!reflect.DeepEqual(weather.Screens, []string{"weather-current"}) {
+		t.Fatalf("unexpected merged weather settings: %+v", weather)
+	}
+}

@@ -72,6 +72,21 @@ services:
       awtrix:
         condition: service_healthy
 
+  weather-check:
+    profiles: [checks]
+    image: tc002-apps/server/weather-check:local
+    build:
+      context: ..
+      dockerfile: apps/server/Dockerfile
+      target: weather-integration
+    environment:
+      TC002_INTEGRATION_URL: http://awtrix-check:8080
+    volumes:
+      - ..:/repo:ro
+    depends_on:
+      awtrix-check:
+        condition: service_healthy
+
   worker:
     profiles: [server]
     build:
@@ -83,6 +98,21 @@ services:
       TC002_LOCAL_CONFIG: ""
     volumes:
       - ../configs:/app/configs:ro
+
+  weather-provider:
+    profiles: [server]
+    build:
+      context: ..
+      dockerfile: apps/server/Dockerfile
+      args:
+        APP: weather-provider
+    environment:
+      AWTRIX_URL: http://awtrix:8080
+    volumes:
+      - ../configs:/app/configs:ro
+    depends_on:
+      awtrix:
+        condition: service_healthy
 
 volumes:
   awtrix-data:

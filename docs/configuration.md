@@ -2,6 +2,8 @@
 
 The HTTP health integration uses `[server.status]`: `url`, `app`, `label`, `interval`, `timeout`, `ttl` and `attempts`. See [service-status](integrations/service-status.md) for defaults, validation and setup. Personal overrides merge individual fields.
 
+The [weather integration](integrations/weather.md) uses `[server.weather]`: required `latitude`/`longitude`, plus `label`, `timezone`, `screens`, `interval`, `timeout`, `ttl` and `attempts`. Coordinates have no implicit default; zero is valid. Fields merge individually, while `screens` replaces the selected consumers. `weather-provider --print` fetches one reading for terminal inspection without a clock connection.
+
 All project settings use one TOML schema and one Go loader:
 
 ```text
@@ -102,7 +104,7 @@ Clock URL precedence is explicit `--url` > `AWTRIX_URL` > personal TOML > shared
 
 ## Docker and checks
 
-Production Compose contains VPS services only and mounts `configs/` read-only. Images include only shared defaults, not personal settings. Server and tool images use separate Dockerfiles and source copies. No `.env` file is needed. Dev containers ignore personal overrides and use the internal virtual-clock address `http://awtrix:8080`; the host browser uses http://localhost:8080.
+Production Compose contains VPS services only and mounts `configs/` read-only. Images include only shared defaults, not personal settings. Server and tool images use separate Dockerfiles and source copies. No `.env` file is needed. Dev clockctl/worker containers ignore personal overrides; the weather provider reads personal location settings and overrides only the clock URL with `http://awtrix:8080`. The host browser uses http://localhost:8080.
 
 `clock-check` always uses a disposable local target, but respects the configured category selections and app settings. Its config files must be inside the mounted repository. Native commands can read external profiles. Docker-only builds use a containerized config reader if host Go is absent.
 

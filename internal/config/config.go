@@ -30,9 +30,10 @@ type ClockConfig struct {
 type Config struct {
 	Clock  ClockConfig
 	Server struct {
-		Apps   []string
-		Worker struct{ Interval string }
-		Status StatusConfig
+		Apps    []string
+		Worker  struct{ Interval string }
+		Status  StatusConfig
+		Weather WeatherConfig
 	}
 	Tools struct{ Apps []string }
 }
@@ -68,6 +69,16 @@ func Load(base, personal string) (Config, error) {
 		Attempts: 3,
 	}
 
+	c.Server.Weather = WeatherConfig{
+		Label:    "HOME",
+		Timezone: "auto",
+		Screens:  []string{"weather-current", "weather-forecast"},
+		Interval: "15m",
+		Timeout:  "15s",
+		TTL:      "2h",
+		Attempts: 3,
+	}
+
 	for index, path := range []string{base, personal} {
 		if path == "" {
 			continue
@@ -98,7 +109,8 @@ func Load(base, personal string) (Config, error) {
 				Worker struct {
 					Interval *string `toml:"interval"`
 				} `toml:"worker"`
-				Status statusOverrides `toml:"status"`
+				Status  statusOverrides  `toml:"status"`
+				Weather weatherOverrides `toml:"weather"`
 			} `toml:"server"`
 			Tools struct {
 				Apps *[]string `toml:"apps"`
@@ -148,6 +160,7 @@ func Load(base, personal string) (Config, error) {
 		}
 
 		fields.Server.Status.apply(&c.Server.Status)
+		fields.Server.Weather.apply(&c.Server.Weather)
 
 		if fields.Tools.Apps != nil {
 			c.Tools.Apps = selection(*fields.Tools.Apps)
