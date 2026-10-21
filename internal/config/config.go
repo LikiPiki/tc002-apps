@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -33,8 +32,6 @@ type ClockConfig struct {
 type Config struct {
 	Clock  ClockConfig
 	Server struct {
-		Apps    []string
-		Worker  struct{ Interval string }
 		Weather WeatherConfig
 	}
 	Tools struct{ Apps []string }
@@ -61,7 +58,6 @@ func Load(base, personal string) (Config, error) {
 	c.Clock.Deploy.Services = []string{}
 	c.Clock.Deploy.OnDemand = []string{}
 	c.Clock.Screens, c.Clock.Services, c.Clock.OnDemand = AppSettings{}, AppSettings{}, AppSettings{}
-	c.Server.Worker.Interval = "1m"
 
 	c.Server.Weather = WeatherConfig{
 		Label:    "HOME",
@@ -89,10 +85,6 @@ func Load(base, personal string) (Config, error) {
 		var fields struct {
 			Clock  clockOverrides `toml:"clock"`
 			Server struct {
-				Apps   *[]string `toml:"apps"`
-				Worker struct {
-					Interval *string `toml:"interval"`
-				} `toml:"worker"`
 				Weather weatherOverrides `toml:"weather"`
 			} `toml:"server"`
 			Tools struct {
@@ -110,13 +102,6 @@ func Load(base, personal string) (Config, error) {
 			return c, err
 		}
 
-		if fields.Server.Apps != nil {
-			c.Server.Apps = selection(*fields.Server.Apps)
-		}
-		if fields.Server.Worker.Interval != nil {
-			c.Server.Worker.Interval = *fields.Server.Worker.Interval
-		}
-
 		fields.Server.Weather.apply(&c.Server.Weather)
 
 		if fields.Tools.Apps != nil {
@@ -125,16 +110,6 @@ func Load(base, personal string) (Config, error) {
 	}
 
 	return c, nil
-}
-
-// WorkerInterval validates only worker runtime semantics, after explicit overrides.
-func (c Config) WorkerInterval() (time.Duration, error) {
-	interval, err := time.ParseDuration(c.Server.Worker.Interval)
-	if err != nil || interval <= 0 {
-		return 0, fmt.Errorf("server.worker.interval %q must be a positive Go duration", c.Server.Worker.Interval)
-	}
-
-	return interval, nil
 }
 
 func mergeSettings(dst, src AppSettings) {

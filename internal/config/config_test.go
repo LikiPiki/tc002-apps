@@ -28,12 +28,11 @@ func TestPersonalOverridesMergeAcrossSections(t *testing.T) {
 url = "http://localhost:8080"
 [clock.deploy]
 screens = ["cigar"]
-[server]
-apps = ["worker"]
-[server.worker]
-interval = "1m"
+[server.weather]
+interval = "15m"
+label = "HOME"
 `)
-	fixture(t, personal, "[clock]\nurl = \"http://192.168.1.50\"\n[server.worker]\ninterval = \"30s\"\n")
+	fixture(t, personal, "[clock]\nurl = \"http://192.168.1.50\"\n[server.weather]\ninterval = \"30m\"\n")
 
 	c, err := Load(base, personal)
 	if err != nil {
@@ -41,9 +40,9 @@ interval = "1m"
 	}
 
 	if c.Clock.URL != "http://192.168.1.50" ||
-		c.Server.Worker.Interval != "30s" ||
+		c.Server.Weather.Interval != "30m" ||
 		!reflect.DeepEqual(c.Clock.Deploy.Screens, []string{"cigar"}) ||
-		!reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
+		c.Server.Weather.Label != "HOME" {
 		t.Fatalf("unexpected merged config: %+v", c)
 	}
 
@@ -54,7 +53,7 @@ interval = "1m"
 		c.Clock.Deploy.Screens != nil ||
 		c.Clock.Deploy.Services == nil ||
 		c.Clock.URL != "http://localhost:8080" ||
-		len(c.Server.Apps) != 1 {
+		c.Server.Weather.Interval != "15m" {
 		t.Fatalf("wildcard must reset only clock selection: %+v, %v", c, err)
 	}
 
@@ -72,9 +71,9 @@ func TestRejectInvalidConfig(t *testing.T) {
 		"[clock]\napps = []",
 		"[clock]\napp = [\"cigar\"]",
 		"[clock.deploy]\nscreens = \"cigar\"",
-		"[server]\napps = true",
+		"[server]\napps = [\"*\"]",
 		"[clock]\nurl = [",
-		"[server.worker]\ninterval = 12",
+		"[server.worker]\ninterval = \"1m\"",
 	} {
 		path := filepath.Join(t.TempDir(), "config.toml")
 		fixture(t, path, content)
@@ -87,20 +86,15 @@ func TestRejectInvalidConfig(t *testing.T) {
 
 func TestLoadDoesNotValidateUnrelatedConsumers(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
-	fixture(t, path, "[clock]\nurl = \"not-a-url\"\n[clock.services.unused]\nsetting = [1,2]\n[server.worker]\ninterval = \"invalid\"\n")
+	fixture(t, path, "[clock]\nurl = \"not-a-url\"\n[clock.services.unused]\nsetting = [1,2]\n[server.weather]\ninterval = \"invalid\"\n")
 
 	c, err := Load(path, "")
 	if err != nil {
 		t.Fatalf("semantic values must be left to consumers: %v", err)
 	}
 
-	if _, err := c.WorkerInterval(); err == nil {
-		t.Fatal("worker accepted invalid interval")
-	}
-
-	c.Server.Worker.Interval = "30s"
-	if interval, err := c.WorkerInterval(); err != nil || interval.String() != "30s" {
-		t.Fatalf("valid worker config depends on unrelated clock config: %v, %v", interval, err)
+	if c.Server.Weather.Interval != "invalid" || c.Clock.URL != "not-a-url" {
+		t.Fatal("loader replaced semantic values instead of leaving validation to consumers")
 	}
 }
 
@@ -133,22 +127,22 @@ func TestConfigPathEnvironmentAndExplicitOverride(t *testing.T) {
 	}
 }
 
-func TestToolSelectionDoesNotChangeServerSelection(t *testing.T) {
+func TestToolSelectionDoesNotChangeServerSettings(t *testing.T) {
 	dir := t.TempDir()
 	base, personal := filepath.Join(dir, "base.toml"), filepath.Join(dir, "personal.toml")
 
-	fixture(t, base, "[server]\napps = [\"worker\"]\n[tools]\napps = [\"clockctl\"]\n")
+	fixture(t, base, "[server.weather]\nlabel = \"SPB\"\n[tools]\napps = [\"clockctl\"]\n")
 	fixture(t, personal, "[tools]\napps = []\n")
 
 	c, err := Load(base, personal)
-	if err != nil || c.Tools.Apps == nil || len(c.Tools.Apps) != 0 || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
-		t.Fatalf("tool selection changed server selection: %+v, %v", c, err)
+	if err != nil || c.Tools.Apps == nil || len(c.Tools.Apps) != 0 || c.Server.Weather.Label != "SPB" {
+		t.Fatalf("tool selection changed server settings: %+v, %v", c, err)
 	}
 
 	fixture(t, personal, "[tools]\napps = [\"*\"]\n")
 
 	c, err = Load(base, personal)
-	if err != nil || c.Tools.Apps != nil || !reflect.DeepEqual(c.Server.Apps, []string{"worker"}) {
+	if err != nil || c.Tools.Apps != nil || c.Server.Weather.Label != "SPB" {
 		t.Fatalf("wildcard tools selection failed: %+v, %v", c, err)
 	}
 }

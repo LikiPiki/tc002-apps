@@ -5,20 +5,11 @@ x-project-environment: &project-environment
   TC002_LOCAL_CONFIG: ${LOCAL_CONFIG-configs/config.local.toml}
 
 services:
-  weather-provider:
+  server:
     extends:
       file: ../deploy/compose.yaml
-      service: weather-provider
-    image: tc002-apps/server/weather-provider:lan
-    restart: "no"
-    environment: *project-environment
-
-  worker:
-    profiles: [worker]
-    extends:
-      file: ../deploy/compose.yaml
-      service: worker
-    image: tc002-apps/server/worker:lan
+      service: server
+    image: tc002-apps/server:lan
     restart: "no"
     environment: *project-environment
 

@@ -17,7 +17,7 @@ import (
 func TestWeatherClockIntegration(t *testing.T) {
 	url := os.Getenv("TC002_INTEGRATION_URL")
 	if url == "" {
-		t.Skip("run make weather-check for the disposable AWTRIX integration")
+		t.Skip("run make server-check for the disposable AWTRIX integration")
 	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)

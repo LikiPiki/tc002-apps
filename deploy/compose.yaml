@@ -1,36 +1,9 @@
 services:
-  weather-provider:
-    image: tc002-apps/server/weather-provider:local
+  server:
+    image: tc002-apps/server:local
     build:
       context: ..
       dockerfile: apps/server/Dockerfile
-      args:
-        APP: weather-provider
-    volumes:
-      - type: bind
-        source: ../configs
-        target: /app/configs
-        read_only: true
-        bind:
-          create_host_path: false
-    restart: unless-stopped
-    init: true
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: ["no-new-privileges:true"]
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  worker:
-    image: tc002-apps/server/worker:local
-    build:
-      context: ..
-      dockerfile: apps/server/Dockerfile
-      args:
-        APP: worker
     volumes:
       - type: bind
         source: ../configs

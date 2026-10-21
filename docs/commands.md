@@ -52,7 +52,7 @@ HTTP failures include the method, API path (including the app name for script op
 For a standalone Docker tool, set `clock.urls` in your personal TOML and run:
 
 ```sh
-make docker-build GROUP=tools
+make docker-build-tools
 docker run --rm --mount "type=bind,source=$PWD/configs,target=/app/configs,readonly" \
   tc002-apps/tools/clockctl:local --text 'Hello from Docker'
 ```
@@ -88,8 +88,7 @@ Direct CLI equivalents:
 go run ./apps/tools/cmd/clockctl deploy --app mackerel
 go run ./apps/tools/cmd/clockctl show --app mackerel
 go run ./apps/tools/cmd/clockctl list --local-config ''
-go run ./apps/tools/cmd/clockctl build-list --group all # Qualified Go artifact selection
-go run ./apps/tools/cmd/clockctl server-list # Compatibility alias: server command names only
+go run ./apps/tools/cmd/clockctl tool-list # Selected utility names only
 ```
 
 Deployment reads all selected sources before writing to the device. It requires running Berry scripting and the `scriptUpdates` capability. It reads the exact previous source, then uses `/api/v1/apps/script-update/{name}` with `expected_source` (or `null` for a new app). AWTRIX preserves the previous script if the new source fails compilation or setup, and rejects concurrent changes with HTTP 409. There is no unsafe replacement fallback. Update AWTRIX NG if atomic updates are unsupported.
@@ -108,7 +107,7 @@ To deploy scripts from Docker, mount the repository read-only so the config and 
 
 ```sh
 # Include clockctl in tools.apps before building its image.
-make docker-build GROUP=tools
+make docker-build-tools
 docker run --rm --workdir /repo \
   --mount "type=bind,source=$PWD,target=/repo,readonly" \
   tc002-apps/tools/clockctl:local list
@@ -116,22 +115,24 @@ docker run --rm --workdir /repo \
 
 Replace `list` with `deploy` or `show --app mackerel`. Inside Docker, `localhost` means the container itself; use a reachable physical-clock address or the appropriate container network address. The utility is not a production Compose service; see [utility apps](../apps/tools/README.md).
 
-## worker
+## Complete server
 
-The worker currently logs `worker tick`; it does not fetch data or publish to the clock.
+`tc002-server` contains all server features and runs as the one `server` Compose service. There is no server app selector or per-feature executable.
 
 ```sh
-go run ./apps/server/cmd/worker --once
-go run ./apps/server/cmd/worker --interval 30s
+go run ./apps/server/cmd/server --once
+go run ./apps/server/cmd/server --print
+go run ./apps/server/cmd/server --version
 ```
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--once` | `false` | Run once and exit |
-| `--interval` | TOML `server.worker.interval` (`1m`) | Explicit positive Go duration override |
+| `--once` | `false` | Perform one server update and exit |
+| `--print` | `false` | Fetch one reading for JSON inspection without clock writes |
+| `--version` | | Print server version and commit |
 | `--config` | `configs/config.toml` | Shared project config |
 | `--local-config` | `configs/config.local.toml` | Optional personal config; empty disables it |
 
-The first run happens immediately. SIGINT or SIGTERM stops periodic mode gracefully. The interval must be positive, including when `--once` is used. The effective interval is included in each log entry.
+The first update happens immediately. SIGINT or SIGTERM stops continuous mode gracefully. Weather timing is configured in `[server.weather]`, not by selecting a separate process or image. `make lan`, `make lan-once` and `make lan-logs` operate on this same complete server.
 
 Pass `--help` to either command, or to a `clockctl` subcommand, for its flags.

@@ -21,6 +21,7 @@ jobs:
       - run: make check
       - run: make sprites-check
       - run: make build
+      - run: make build-tools
 
   docker:
     runs-on: ubuntu-latest
@@ -29,7 +30,8 @@ jobs:
       - run: docker compose -f deploy/compose.yaml config --quiet
       - run: docker compose -f dev/compose.yaml --profile tools --profile server --profile checks config --quiet
       - run: docker compose -f dev/compose.lan.yaml --profile '*' config --quiet
-      - run: make docker-build CONFIG_RUNNER=docker
+      - run: make docker-build
+      - run: make docker-build-tools CONFIG_RUNNER=docker
 
   berry:
     runs-on: ubuntu-latest
@@ -59,18 +61,18 @@ jobs:
       - name: Check every Berry app independently of deploy selection
         run: make clock-check CHECK_BUILD=0 CHECK_ALL=true LOCAL_CONFIG=
 
-      - name: Build cached weather integration runner
+      - name: Build cached server integration runner
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/server/Dockerfile
-          target: weather-integration
+          target: integration
           load: true
-          tags: tc002-apps/server/weather-check:local
-          cache-from: type=gha,scope=weather-check-runner
-          cache-to: type=gha,mode=max,scope=weather-check-runner
-      - name: Check weather producer and both screens
-        run: make weather-check CHECK_BUILD=0
+          tags: tc002-apps/server-check:local
+          cache-from: type=gha,scope=server-check-runner
+          cache-to: type=gha,mode=max,scope=server-check-runner
+      - name: Check server and Berry consumers
+        run: make server-check CHECK_BUILD=0
       - uses: actions/upload-artifact@v4
         if: always()
         with:

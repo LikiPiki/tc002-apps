@@ -12,19 +12,25 @@ import (
 	"time"
 
 	"github.com/LikiPiki/tc002-apps/apps/server/internal/weatherprovider"
+	"github.com/LikiPiki/tc002-apps/internal/buildinfo"
 	"github.com/LikiPiki/tc002-apps/internal/clocks"
 	"github.com/LikiPiki/tc002-apps/internal/config"
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(buildinfo.StringFor("tc002-server"))
+		return
+	}
+
 	if err := run(os.Args[1:]); err != nil && err != flag.ErrHelp {
-		slog.Error("weather provider failed", "error", err)
+		slog.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run(args []string) error {
-	flags := flag.NewFlagSet("weather-provider", flag.ContinueOnError)
+	flags := flag.NewFlagSet("tc002-server", flag.ContinueOnError)
 	base, personal := config.Paths(flags)
 	once := flags.Bool("once", false, "fetch and publish once")
 	printOnly := flags.Bool("print", false, "fetch once and print JSON without connecting to a clock")

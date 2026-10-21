@@ -28,8 +28,8 @@ func main() {
 			return
 		}
 
-		if os.Args[1] == "build-list" || os.Args[1] == "server-list" {
-			if err := runBuildList(os.Args[1], os.Args[2:]); err != nil && err != flag.ErrHelp {
+		if os.Args[1] == "tool-list" {
+			if err := runToolList(os.Args[2:]); err != nil && err != flag.ErrHelp {
 				slog.Error("build selection failed", "error", err)
 				os.Exit(1)
 			}
@@ -52,7 +52,7 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: clockctl [notification flags] | <command> [flags]")
-		fmt.Fprintln(os.Stderr, "Commands: deploy, rollback, validate, show, start, stop, list, check, doctor, status, build-list, server-list")
+		fmt.Fprintln(os.Stderr, "Commands: deploy, rollback, validate, show, start, stop, list, check, doctor, status, tool-list")
 		fmt.Fprintln(os.Stderr, "Run clockctl deploy --help for Berry upload options.")
 		flag.PrintDefaults()
 	}

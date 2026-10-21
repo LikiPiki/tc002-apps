@@ -10,6 +10,10 @@ var Version = "dev"
 var Commit = "unknown"
 
 func String() string {
+	return StringFor("clockctl")
+}
+
+func StringFor(name string) string {
 	commit := Commit
 	if commit == "unknown" {
 		if info, ok := debug.ReadBuildInfo(); ok {
@@ -21,5 +25,5 @@ func String() string {
 		}
 	}
 
-	return fmt.Sprintf("clockctl %s (%s)", Version, commit)
+	return fmt.Sprintf("%s %s (%s)", name, Version, commit)
 }

@@ -14,12 +14,6 @@ urls = ["192.168.1.50", "192.168.1.51"]
 # on = "10:00"
 # off = "20:00"
 
-# [server]
-# apps = ["worker"]
-
-# [server.worker]
-# interval = "30s"
-
 # [server.weather]
 # latitude = 59.9386
 # longitude = 30.3141

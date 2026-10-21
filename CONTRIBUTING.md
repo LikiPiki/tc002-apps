@@ -21,15 +21,15 @@ make dev-down
 
 The first virtual-clock build downloads and compiles AWTRIX NG and can take several minutes.
 
-## Adding a Go application
+## Adding a server feature or Go utility
 
-1. Choose `apps/server/cmd/<name>/main.go` for a VPS process or `apps/tools/cmd/<name>/main.go` for a utility. Use only letters, digits, hyphens, or underscores in names.
+1. Add server functionality under `apps/server/internal/` and wire it into the existing `apps/server/cmd/server` process. Add independent utilities under `apps/tools/cmd/<name>/main.go`.
 2. Put family-specific logic in that family's `internal/`. Root `internal/` is for shared API/config code, never utility-specific checking/discovery. Server applications must not import tools. Add meaningful behavior tests.
 3. Document configuration, flags, data sources, and whether the command is one-off or long-running.
-4. Build with `make build GROUP=<server|tools>` or `make docker-build GROUP=<server|tools>`. Check the appropriate `server.apps` or `tools.apps` selection. Artifact paths and image tags include the family.
-5. Only VPS processes get production Compose services, using `apps/server/Dockerfile` and image `tc002-apps/server/<name>:local`. Utilities use `apps/tools/Dockerfile` and run independently. Add a dev service if it helps local integration testing.
+4. Use `make build-server` / `make docker-build-server` for the complete server, or `make build-tools` / `make docker-build-tools` for utilities. `tools.apps` controls utility artifacts only.
+5. All server features ship in `tc002-apps/server:local` and run through the one production `server` service. Do not add per-feature Docker images, Compose services, selection flags or generated server build sets.
 
-CI checks all Go packages, builds selected server/tool binaries and images, and validates production and dev Compose. Shared defaults select all current Go commands. Add the production Compose service for a VPS process. Future screen/VPS features can follow the [alpha integration ID/contract design](docs/integrations.md), with cross-linked component READMEs; the pairing registry and TOML schema are not implemented yet.
+CI checks all Go packages, builds the complete server plus selected utilities, and validates production and dev Compose. Run `make server-check` when changing server data processing or clock-consumer integration. Screen/VPS features should have a documented [integration contract](docs/integrations.md) and cross-linked component READMEs.
 
 ## Adding a Berry app
 
