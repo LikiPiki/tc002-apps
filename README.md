@@ -4,10 +4,11 @@ Apps for Ulanzi TC002 running AWTRIX NG, with Go services for processing data an
 
 ## Current status
 
-This repository is an initial toolkit, not a collection of finished clock apps:
+This repository is a small toolkit with autonomous clock apps and an HTTP health integration:
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - `worker` demonstrates periodic execution and graceful shutdown; it does not process or publish data yet.
+- `status-provider` checks an HTTP health endpoint and publishes to the `service-status` screen with explicit data expiry. See [setup and contract](docs/integrations/service-status.md).
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
 

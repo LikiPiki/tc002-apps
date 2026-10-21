@@ -17,5 +17,14 @@ apps = ["*"] # Go commands to build from apps/server/cmd/
 [server.worker]
 interval = "1m"
 
+[server.status]
+url = "" # Set a reachable health endpoint before starting status-provider.
+app = "service-status"
+label = "SITE"
+interval = "30s"
+timeout = "5s" # Total budget for all probe attempts.
+ttl = "90s"
+attempts = 3
+
 [tools]
 apps = ["*"] # CLI utilities, built separately from VPS services.

@@ -1,12 +1,12 @@
-# Screen/server integrations (alpha)
+# Screen/server integrations
 
-**Status: alpha, design-stage.** Integration IDs, wiring conventions, and contracts are experimental and may change. This document describes the intended architecture, not an implemented pairing/deployment API. There is no accepted `[integrations]` TOML section or automatic component matching yet.
+The [service-status integration](integrations/service-status.md) is implemented and tested end to end. Integration registry/config wiring remains experimental: there is no accepted `[integrations]` TOML section or automatic component matching yet.
 
 An integration is one user-facing feature that may span multiple runtime components. Runtime directories answer **where code executes**; an integration ID answers **which components work together**.
 
 ## Current state
 
-The bundled Berry animations and display policy run autonomously. The Go worker is a placeholder, not a data source for them. There is no implemented cross-runtime integration registry, automatic pairing, or MQTT transport yet. Existing TOML selections choose artifacts independently.
+The bundled Berry animations and display policy run autonomously. `status-provider` checks a configured HTTP endpoint and supplies `service-status`; `worker` remains a periodic-process example. There is no cross-runtime registry, automatic pairing, or MQTT transport yet. Existing TOML selections choose artifacts independently.
 
 ## Convention for a real integration
 

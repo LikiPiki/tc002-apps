@@ -1,5 +1,7 @@
 # Project configuration
 
+The HTTP health integration uses `[server.status]`: `url`, `app`, `label`, `interval`, `timeout`, `ttl` and `attempts`. See [service-status](integrations/service-status.md) for defaults, validation and setup. Personal overrides merge individual fields.
+
 All project settings use one TOML schema and one Go loader:
 
 ```text

@@ -20,6 +20,10 @@ help:
 clock-check:
 	sh scripts/check-clock.sh
 
+.PHONY: status-check clock-validate
+status-check:
+	sh scripts/check-status.sh
+
 clock-list clock-deploy clock-show clock-start clock-stop clock-validate:
 	go run ./apps/tools/cmd/clockctl $(patsubst clock-%,%,$@) --config "$$CONFIG" --local-config "$$LOCAL_CONFIG" --app "$$APP" --kind "$$KIND"
 

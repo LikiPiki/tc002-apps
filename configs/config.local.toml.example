@@ -17,5 +17,11 @@ url = "http://192.168.1.50"
 # [server.worker]
 # interval = "30s"
 
+# [server.status]
+# url = "https://example.com/health"
+# label = "SITE"
+# interval = "30s"
+# ttl = "90s"
+
 # [tools]
 # apps = ["clockctl"] # Use [] to skip utility build artifacts.

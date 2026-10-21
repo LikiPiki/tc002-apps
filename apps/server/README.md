@@ -4,6 +4,7 @@ This directory contains processes intended to run on a VPS. It does not contain 
 
 ```text
 cmd/worker/     Placeholder periodic service
+cmd/status-provider/  HTTP health producer for the service-status screen
 Dockerfile      Server-only build: apps/server + shared internal libraries
 ```
 
@@ -23,6 +24,6 @@ go run ./apps/server/cmd/worker --once
 
 Production `deploy/compose.yaml` contains VPS services only. Runtime images include the selected binary, runtime dependencies, and shared config defaults; Compose mounts your config directory read-only. Neither Berry source nor CLI/checking code is copied into the server build.
 
-For a future feature backed by a server and a screen, the [alpha integration design](../../docs/integrations.md) proposes a shared ID and a documented data contract. Automatic pairing and config wiring are not implemented yet.
+The [service-status integration](../../docs/integrations/service-status.md) provides a working server/screen example and `make status-check` end-to-end verification. Automatic pairing and config wiring are not implemented yet.
 
 See [deployment](../../docs/deployment.md), [configuration](../../docs/configuration.md), and [utility apps](../tools/README.md).

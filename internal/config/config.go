@@ -32,6 +32,7 @@ type Config struct {
 	Server struct {
 		Apps   []string
 		Worker struct{ Interval string }
+		Status StatusConfig
 	}
 	Tools struct{ Apps []string }
 }
@@ -56,6 +57,9 @@ func Load(base, personal string) (Config, error) {
 	c.Clock.Deploy.OnDemand = []string{}
 	c.Clock.Screens, c.Clock.Services, c.Clock.OnDemand = AppSettings{}, AppSettings{}, AppSettings{}
 	c.Server.Worker.Interval = "1m"
+	c.Server.Status = StatusConfig{
+		App: "service-status", Label: "SITE", Interval: "30s", Timeout: "5s", TTL: "90s", Attempts: 3,
+	}
 	for index, path := range []string{base, personal} {
 		if path == "" {
 			continue
@@ -84,6 +88,7 @@ func Load(base, personal string) (Config, error) {
 				Worker struct {
 					Interval *string `toml:"interval"`
 				} `toml:"worker"`
+				Status statusOverrides `toml:"status"`
 			} `toml:"server"`
 			Tools struct {
 				Apps *[]string `toml:"apps"`
@@ -126,6 +131,7 @@ func Load(base, personal string) (Config, error) {
 		if fields.Server.Worker.Interval != nil {
 			c.Server.Worker.Interval = *fields.Server.Worker.Interval
 		}
+		fields.Server.Status.apply(&c.Server.Status)
 		if fields.Tools.Apps != nil {
 			c.Tools.Apps = selection(*fields.Tools.Apps)
 		}
