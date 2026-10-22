@@ -76,8 +76,8 @@ The list/deploy/show/start/stop Make commands require Go; `clock-check` requires
 
 ```sh
 make dev
-make clock-deploy CONFIG=configs/config.toml.example LOCAL_CONFIG=
-make clock-show APP=mackerel CONFIG=configs/config.toml.example LOCAL_CONFIG=
+make clock-deploy CONFIG=examples/configs/config.toml LOCAL_CONFIG=
+make clock-show APP=mackerel CONFIG=examples/configs/config.toml LOCAL_CONFIG=
 ```
 
 Keep `AWTRIX_URL` unset when relying on config URLs. To explicitly override the target, use `AWTRIX_URL=http://localhost:8080 make clock-deploy`.

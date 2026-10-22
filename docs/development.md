@@ -14,7 +14,7 @@ Use `make clock-check CHECK_ALL=true LOCAL_CONFIG=` to exercise all catalog apps
 
 Run these commands from the repository root:
 
-Run `make init-config` once after cloning. Existing working configs are preserved. Deterministic checks can instead use `CONFIG=configs/config.toml.example LOCAL_CONFIG=`.
+Run `make init-config` once after cloning. Existing working configs are preserved. Deterministic checks instead use `CONFIG=testdata/ci/config.toml LOCAL_CONFIG=`.
 
 | Command | Purpose |
 | --- | --- |
@@ -124,7 +124,7 @@ You can also run the Go client directly on your computer:
 AWTRIX_URL=http://localhost:8080 go run ./apps/tools/cmd/clockctl --text 'Native Go works'
 ```
 
-For a template-only virtual preview, use `make clock-deploy CONFIG=configs/config.toml.example LOCAL_CONFIG=` and the equivalent `clock-show`. These explicitly select example settings rather than your working config; leave `AWTRIX_URL` unset. Dev containers read mounted configs and use the virtual-clock address set by Compose. See [configuration](configuration.md) and [Berry deployment](commands.md#berry-deployment).
+For a template-only virtual preview, use `make clock-deploy CONFIG=examples/configs/config.toml LOCAL_CONFIG=` and the equivalent `clock-show`. These explicitly select host-side setup defaults; leave `AWTRIX_URL` unset. Application containers receive only the mounted runtime config directory. See [configuration](configuration.md).
 
 ## Runtime checks
 
@@ -147,7 +147,7 @@ Temporary containers, networks, and data are removed on success or failure. The 
 
 The CLI `check` subcommand is an internal runner: it requires the Compose sandbox marker, accepts only the fixed `http://awtrix-check:8080` endpoint, and verifies `boardType=linux` before any script writes. A direct `clockctl check --url <device>` invocation is rejected before contacting the device. Use `make clock-check`, not a custom check URL.
 
-CI runs the same check using `CONFIG=configs/config.toml.example LOCAL_CONFIG=` in a dedicated `berry` job. Buildx caches AWTRIX and runner images separately. No working/personal config is needed in the checkout or image. Normal local runs build images by default; `CHECK_BUILD=0` is for prebuilt images. This checks runtime errors and frames, not animation quality or hardware behavior.
+CI runs the same check using the dedicated fixture `CONFIG=testdata/ci/config.toml LOCAL_CONFIG=`. The temporary check runner reads it through the repository mount. Buildx caches AWTRIX and runner images separately; fixtures and setup templates are not included in application images. Normal local runs build images by default; `CHECK_BUILD=0` is for prebuilt images.
 
 ### Go integration smoke check
 

@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  CONFIG: configs/config.toml.example
+  CONFIG: testdata/ci/config.toml
   LOCAL_CONFIG: ""
 
 jobs:

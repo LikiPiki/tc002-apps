@@ -52,7 +52,7 @@ Keep independent failure domains separate. Group related rules under the owner o
 
 ## Configuration model
 
-`configs/config.toml.example` is the tracked template. `make init-config` exclusively creates a local, ignored `config.toml` and preserves existing files. Optional `config.local.toml` overrides fields. Images ship the example only; runtime settings come from the read-only mount. Native commands and containers use the same schema.
+Setup templates live under `examples/configs/`; the dedicated CI fixture is `testdata/ci/config.toml`. `make init-config` creates the local working file and preserves existing settings. The whole runtime `configs/` directory is untracked. Images contain no configs, templates or fixtures; application settings come only from the read-only runtime mount.
 
 - `clock.deploy.screens/services/on_demand` select upload artifacts.
 - `clock.screens.<name>`, `clock.services.<name>`, and `clock.on_demand.<name>` contain app settings.

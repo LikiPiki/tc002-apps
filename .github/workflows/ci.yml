@@ -7,9 +7,9 @@ on:
 permissions:
   contents: read
 
-# Checks use a tracked example, never a developer's untracked working config.
+# Checks use an explicit fixture, never a developer's working config or setup example.
 env:
-  CONFIG: configs/config.toml.example
+  CONFIG: testdata/ci/config.toml
   LOCAL_CONFIG: ""
 
 jobs:

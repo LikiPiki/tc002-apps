@@ -1,0 +1,16 @@
+# Deterministic CI fixture. It is selected explicitly and never shipped in images.
+[clock]
+urls = ["http://awtrix-check:8080"]
+
+[clock.deploy]
+screens = ["*"]
+services = ["display-policy"]
+on_demand = ["*"]
+
+[clock.services.display-policy]
+schedule_enabled = false
+on = "10:00"
+off = "20:00"
+
+[tools]
+apps = ["*"]

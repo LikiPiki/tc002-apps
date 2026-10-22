@@ -36,7 +36,7 @@ CI checks all Go packages, builds the complete server plus selected utilities, a
 
 1. Choose `screens`, `services`, or `on-demand` and add `apps/clock/<kind>/<name>/main.be` with a README describing purpose, AWTRIX compatibility, settings, and inputs. Services require `# @headless true`; on-demand tools require `# @ondemand`. Ordinary screens use neither marker. Names must be unique across categories.
 2. Place shared icons in `apps/clock/assets/icons/`, with source and license information. Keep app-specific assets alongside the app.
-3. Run `make dev`, then deploy/show with `CONFIG=configs/config.toml.example LOCAL_CONFIG=`. Keep `AWTRIX_URL` unset to use the template's virtual-clock URL. Inspect live output and runtime errors.
+3. Run `make dev`, then deploy/show with `CONFIG=examples/configs/config.toml LOCAL_CONFIG=`. Keep `AWTRIX_URL` unset to use the setup template's virtual-clock URL. Inspect live output and runtime errors.
 4. Check hardware-dependent features on a physical TC002. The headless environment does not emulate all hardware.
 
 Run `make clock-check APP=<name>` for an isolated runtime smoke check before uploading to physical hardware. It checks installation and a short period of drawing without changing your regular dev instance. It requires Docker, not a host Go installation. See [runtime checks](docs/development.md#runtime-checks).
@@ -51,6 +51,6 @@ Keep code readable before running a formatter: one operation per line, blank lin
 - Build affected Docker images when changing container or deployment files.
 - Run `make dev-check` when changing the HTTP integration or development environment.
 - Update the relevant guides and examples when behavior or configuration changes.
-- Keep settings and credentials in ignored `configs/config.toml`, optional `config.local.toml` and local clock profiles. Commit only `.example` templates. Initialization/deployment must never overwrite an existing config. All code reads the [same TOML schema](docs/configuration.md).
+- Keep runtime settings under ignored `configs/`. Setup templates belong in `examples/configs/`; deterministic CI fixtures belong in `testdata/ci/`. Neither is copied into application images. Initialization/deployment must never overwrite existing settings. All code reads the [same TOML schema](docs/configuration.md).
 
 Open a branch and submit a pull request describing the change and how you verified it. CI checks Go formatting, vet, tests, native builds, Compose configuration, isolated server/tool image builds, and Berry runtime smoke checks in a cached, disposable AWTRIX. It does not evaluate visual quality or physical-device behavior. A first cold AWTRIX build is slower than cached runs.

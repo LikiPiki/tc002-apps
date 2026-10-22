@@ -20,8 +20,8 @@ func initScript(t *testing.T) string {
 
 func TestInitConfigPreservesExistingFileAndPermissions(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "config.toml")
-	template := filepath.Join(dir, "config.toml.example")
+	target := filepath.Join(dir, "runtime", "config.toml")
+	template := filepath.Join(dir, "template.toml")
 	fixture(t, template, "[clock]\nurls = [\"template\"]\n")
 	fixture(t, target, "# personal configuration\n[clock]\nurls = [\"my-clock\"]\n")
 
@@ -57,8 +57,8 @@ func TestInitConfigPreservesExistingFileAndPermissions(t *testing.T) {
 
 func TestConcurrentInitializationCreatesOneUsableConfig(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "config.toml")
-	template := filepath.Join(dir, "config.toml.example")
+	target := filepath.Join(dir, "runtime", "config.toml")
+	template := filepath.Join(dir, "template.toml")
 	contents := "[clock]\nurls = [\"192.168.1.50\"]\n"
 	fixture(t, template, contents)
 	script := initScript(t)

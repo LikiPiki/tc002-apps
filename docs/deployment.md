@@ -17,7 +17,7 @@ sh deploy/deploy.sh
 
 The script validates Compose, builds the complete image and starts `server` in the background. `restart: unless-stopped` starts it after a reboot when Docker is running. The mounted `configs/` directory supplies your settings and clock profiles; no `.env` file is needed.
 
-Working `config.toml` is ignored by Git and Docker build context; the image ships only its example. Initialization preserves existing files. Deployment does not initialize or rewrite configs, and stops with setup instructions if the working file is missing.
+Runtime `configs/` is ignored by Git and Docker build context. Images contain no working configs or examples; they receive settings only through the read-only mount. Setup templates stay on the host under `examples/configs/`. Initialization preserves existing files. Deployment does not initialize or rewrite configs, and stops with setup instructions if the working file is missing.
 
 ## Build the complete server
 

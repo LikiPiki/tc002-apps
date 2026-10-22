@@ -50,9 +50,9 @@ tc002-apps/
 ├── internal/                      SHARED Go libraries
 │   ├── awtrix/                    HTTP API client; no display-checking loops
 │   └── config/                    TOML parsing/merging; no source discovery
-├── configs/
-│   ├── config.toml.example        Versioned template for the local working config
-│   └── config.local.toml.example  Personal project config template
+├── examples/configs/              Host-side setup templates; not included in images
+├── testdata/ci/config.toml         Versioned CI fixture; not included in images
+├── configs/                       Local runtime settings, ignored by Git/Docker
 ├── deploy/                        PRODUCTION — run Go services on your VPS
 │   ├── compose.yaml               Services, images, and runtime settings
 │   └── deploy.sh                  Deploy selected services or loaded images
@@ -153,7 +153,7 @@ The notification command needs a reachable AWTRIX NG instance without API authen
 
 ### Build the complete server
 
-All settings use local `configs/config.toml` and optional `configs/config.local.toml`. Create the working file once with `make init-config`; only `.example` templates are versioned, and existing files are preserved. The server always includes all server features in one binary/image. See [configuration](docs/configuration.md).
+All settings use local `configs/config.toml` and optional `configs/config.local.toml`. `make init-config` copies host-side defaults from `examples/configs/` once and preserves existing files. CI uses `testdata/ci/config.toml`. Images contain no config files or examples. See [configuration](docs/configuration.md).
 
 ```sh
 make build-server        # Complete bin/server/tc002-server
@@ -179,7 +179,7 @@ make clock-start APP=<tool> # Start an installed on-demand app
 make clock-stop APP=<tool>  # End its session
 ```
 
-Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Settings live in `clock.screens.<name>`, `clock.services.<name>`, or `clock.on_demand.<name>`. Working configs and local profiles are excluded from Git. For template-only virtual settings, pass `CONFIG=configs/config.toml.example LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment).
+Use `make clock-deploy APP=<name>` to update one app by its unique install name. Each app has `main.be` and a README under its lifecycle directory. Working configs and local profiles are excluded from Git. For template-only virtual settings, pass `CONFIG=examples/configs/config.toml LOCAL_CONFIG=` and keep `AWTRIX_URL` unset. See [Berry deployment](docs/commands.md#berry-deployment).
 
 ## Docker
 

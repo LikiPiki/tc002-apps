@@ -5,15 +5,16 @@ The [weather integration](integrations/weather.md) uses `[server.weather]`: requ
 All project settings use one TOML schema and one Go loader:
 
 ```text
-configs/config.toml.example        Versioned working-config template
-configs/config.toml                Local working config, ignored by Git/Docker context
-configs/config.local.toml.example  Personal override template, committed
-configs/config.local.toml          Optional personal overrides, ignored by Git
+examples/configs/                 Versioned setup templates, host-side only
+testdata/ci/config.toml            Explicit deterministic CI fixture
+configs/config.toml               Local working config
+configs/config.local.toml         Optional local overrides
+configs/clocks/                   Local clock profiles
 ```
 
 Initialize once with `make init-config`, then edit `configs/config.toml`. Initialization uses exclusive creation and leaves existing files and permissions untouched, including concurrent invocations. The optional `config.local.toml` override remains supported. Neither deployment nor image builds write working configs.
 
-Only examples are versioned. Images ship `config.toml.example`; the active config comes from the read-only config mount. Missing working configs fail with an initialization hint. CI explicitly uses `CONFIG=configs/config.toml.example LOCAL_CONFIG=` and requires no local or personal files.
+The entire `configs/` directory is ignored by Git and Docker build context. Images contain no configs, templates or CI fixtures. Runtime settings come only from the read-only config mount. Missing working configs fail with an initialization hint. CI explicitly uses `CONFIG=testdata/ci/config.toml LOCAL_CONFIG=`; its fixture is mounted into temporary test containers through the repository mount and is never baked into an application image.
 
 ## One server, multiple clocks
 
@@ -71,7 +72,7 @@ services = []
 on_demand = []
 ```
 
-Copy the provided `configs/clocks/*.toml.example` templates to `*.local.toml`. Local profiles are excluded from Git and image build context, but are available through the mounted `configs/` directory. A profile can contain several addresses when those clocks share its settings.
+Copy the host-side templates from `examples/configs/clocks/` into `configs/clocks/` when setting up profiles. Local profiles are available through the read-only runtime mount. A profile can contain several addresses when those clocks share its settings.
 
 Clock settings inherit shared + personal defaults, then the individual profile overrides them. This includes deployment selections and Berry settings such as `[clock.services.display-policy]`. The profile name in reports comes from its filename (`main.local.toml` → `main`). All selected source files are validated before any clock writes. Unknown fields, missing files, duplicate names, nested profiles and an address assigned to different profiles fail before deployment.
 
@@ -130,7 +131,7 @@ Default `make build`, `make docker-build` and `make docker-save` produce the com
 
 ```sh
 # Optional additional overrides; the working config can hold these settings too.
-cp -n configs/config.local.toml.example configs/config.local.toml
+cp -n examples/configs/config.local.toml configs/config.local.toml
 ```
 
 Override only the values you need:
@@ -161,7 +162,7 @@ make clock-list KIND=services
 make clock-deploy APP=mackerel
 make clock-deploy KIND=on-demand
 make clock-deploy LOCAL_CONFIG=  # Working config without optional overrides
-make clock-list CONFIG=configs/config.toml.example LOCAL_CONFIG= # Inspect the template offline
+make clock-list CONFIG=examples/configs/config.toml LOCAL_CONFIG= # Inspect setup defaults offline
 make build LOCAL_CONFIG="$HOME/.config/tc002/vps.toml"
 make docker-save-server
 make build-tools
@@ -173,7 +174,7 @@ Clock target precedence is explicit single `--url` > single `AWTRIX_URL` > optio
 
 ## Docker and checks
 
-Production Compose mounts `configs/` read-only. Server and tool images ship only the example, with no active configuration or personal settings. Virtual-clock tools disable optional overrides and select their virtual-clock URL explicitly; the server reads local location settings and overrides the clock URL with `http://awtrix:8080`. The host browser uses http://localhost:8080.
+Production Compose mounts only the runtime `configs/` directory read-only. Templates live outside this directory under `examples/`, so they are not visible through that mount. Neither server nor tool images contain configs or examples. Virtual-clock tools disable optional overrides and select their virtual-clock URL explicitly; the server reads local location settings and overrides the clock URL with `http://awtrix:8080`.
 
 `clock-check` always uses a disposable local target, but respects the configured category selections and app settings. Its config files must be inside the mounted repository. Native commands can read external profiles. Docker-only builds use a containerized config reader if host Go is absent.
 

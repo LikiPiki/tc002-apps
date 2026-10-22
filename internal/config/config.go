@@ -80,7 +80,7 @@ func Load(base, personal string) (Config, error) {
 		}
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return c, fmt.Errorf("config %s is missing; create it from configs/config.toml.example with make init-config: %w", path, err)
+				return c, fmt.Errorf("config %s is missing; create it from examples/configs/config.toml with make init-config: %w", path, err)
 			}
 
 			return c, err

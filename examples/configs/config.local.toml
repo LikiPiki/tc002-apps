@@ -1,9 +1,9 @@
-# Copy to config.local.toml. Only specified fields override shared defaults.
+# Optional overrides: copy to configs/config.local.toml without replacing existing settings.
 [clock]
 urls = ["192.168.1.50", "192.168.1.51"]
 # For per-device screen settings, replace urls with:
 # profiles = ["clocks/main.local.toml", "clocks/second.local.toml"]
-# Copy the corresponding files from configs/clocks/*.toml.example first.
+# Copy the corresponding files from examples/configs/clocks/ to configs/clocks/ first.
 # [clock.deploy]
 # screens = ["cigar", "mackerel"]
 # services = ["display-policy"]

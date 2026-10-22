@@ -15,6 +15,5 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates && adduser -D -u 10001 app
 COPY --from=build /out/app /usr/local/bin/app
 WORKDIR /app
-COPY configs/config.toml.example ./configs/config.toml.example
 USER app
 ENTRYPOINT ["/usr/local/bin/app"]

@@ -3,7 +3,7 @@
 set -eu
 
 TARGET=${1:-${CONFIG:-configs/config.toml}}
-TEMPLATE=${2:-configs/config.toml.example}
+TEMPLATE=${2:-examples/configs/config.toml}
 
 if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
     printf 'Keeping existing config: %s\n' "$TARGET"
@@ -14,10 +14,12 @@ if [ ! -f "$TEMPLATE" ]; then
     printf 'Missing config template: %s\n' "$TEMPLATE" >&2
     exit 1
 fi
-if [ ! -d "$(dirname -- "$TARGET")" ]; then
-    printf 'Config parent directory does not exist: %s\n' "$TARGET" >&2
-    exit 1
-fi
+
+# The runtime directory is local and may not exist in a fresh checkout.
+(
+    umask 022
+    mkdir -p "$(dirname -- "$TARGET")"
+)
 
 # A bind-mounted config must be readable by the non-root container user.
 # noclobber also preserves a config created by another concurrent initializer.

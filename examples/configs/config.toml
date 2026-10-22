@@ -1,4 +1,4 @@
-# Working configuration template. Run make init-config once to create config.toml.
+# Run make init-config once to create configs/config.toml from this template.
 # Existing working configs are never overwritten by initialization or deployment.
 [clock]
 urls = ["http://localhost:8080"]

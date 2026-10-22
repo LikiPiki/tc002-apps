@@ -1,6 +1,4 @@
 /bin/
 /dist/
-/configs/config.toml
-/configs/config.local.toml
-/configs/clocks/*.local.toml
+/configs/
 .DS_Store

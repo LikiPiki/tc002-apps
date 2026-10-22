@@ -1,4 +1,4 @@
-# Copy to second.local.toml and list it in the main config's clock.profiles.
+# Copy to configs/clocks/second.local.toml and list it in clock.profiles.
 [clock]
 urls = ["192.168.1.51"]
 

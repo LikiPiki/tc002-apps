@@ -1,4 +1,4 @@
-# Copy to main.local.toml and list it in the main config's clock.profiles.
+# Copy to configs/clocks/main.local.toml and list it in clock.profiles.
 # Only [clock] settings are accepted here; VPS/weather settings stay global.
 [clock]
 urls = ["192.168.1.50"]
