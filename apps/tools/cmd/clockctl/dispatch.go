@@ -36,8 +36,10 @@ func dispatchScripts(ctx context.Context, command string, clock config.ClockConf
 	}
 
 	targetCount := 0
+	hasSystem := false
 	for _, profile := range profiles {
 		targetCount += len(profile.Clock.Targets())
+		hasSystem = hasSystem || len(profile.Clock.System) > 0
 	}
 
 	switch command {
@@ -95,7 +97,7 @@ func dispatchScripts(ctx context.Context, command string, clock config.ClockConf
 	if command == "list" || command == "validate" {
 		return printCatalog(command, profiles, catalogs, options.JSON)
 	}
-	if appCount == 0 {
+	if appCount == 0 && !(command == "deploy" && hasSystem) {
 		if options.JSON {
 			return printJSON(clocks.Report{Results: []clocks.Result{}})
 		}
@@ -113,14 +115,14 @@ func dispatchScripts(ctx context.Context, command string, clock config.ClockConf
 
 	var audience []config.ClockProfile
 	for _, profile := range profiles {
-		if len(catalogs[profile.Name]) > 0 {
+		if len(catalogs[profile.Name]) > 0 || len(profile.Clock.System) > 0 {
 			audience = append(audience, profile)
 		}
 	}
 
 	report, err := clocks.RunProfiles(ctx, audience, options.Timeout, func(ctx context.Context, target clocks.Target, profile config.ClockProfile) (any, error) {
 		scripts := catalogs[profile.Name]
-		return deployTarget(ctx, target, scripts, options, targetCount > 1)
+		return deployTarget(ctx, target, scripts, profile.Clock.System, options, targetCount > 1)
 	})
 	if err != nil {
 		return err
@@ -147,13 +149,18 @@ func (detail deploymentDetail) String() string {
 	return text
 }
 
-func deployTarget(ctx context.Context, target clocks.Target, scripts []clockapps.Script, options scriptOptions, multiple bool) (any, error) {
-	if err := target.Client.CheckScripting(ctx); err != nil {
-		return nil, err
+func deployTarget(ctx context.Context, target clocks.Target, scripts []clockapps.Script, system map[string]any, options scriptOptions, multiple bool) (any, error) {
+	if len(scripts) > 0 {
+		if err := target.Client.CheckScripting(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	plan, err := clockdeploy.Prepare(ctx, target.Client, target.URL, scripts)
 	if err != nil {
+		return nil, err
+	}
+	if err := plan.PrepareSystem(ctx, target.Client, system); err != nil {
 		return nil, err
 	}
 

@@ -2,14 +2,16 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 )
 
 type clockOverrides struct {
-	URL      *string   `toml:"url"`
-	URLs     *[]string `toml:"urls"`
-	Profiles *[]string `toml:"profiles"`
+	URL      *string        `toml:"url"`
+	URLs     *[]string      `toml:"urls"`
+	Profiles *[]string      `toml:"profiles"`
+	System   map[string]any `toml:"system"`
 	Deploy   struct {
 		Screens  *[]string `toml:"screens"`
 		Services *[]string `toml:"services"`
@@ -65,6 +67,12 @@ func (fields clockOverrides) apply(clock *ClockConfig, path string) error {
 	mergeSettings(clock.Screens, fields.Screens)
 	mergeSettings(clock.Services, fields.Services)
 	mergeSettings(clock.OnDemand, fields.OnDemand)
+	if fields.System != nil {
+		if clock.System == nil {
+			clock.System = map[string]any{}
+		}
+		maps.Copy(clock.System, fields.System)
+	}
 
 	return nil
 }

@@ -15,15 +15,15 @@ The initial client expects an HTTP API without authentication. If your setup req
 
 ## Clock timezone
 
-For Moscow and Saint Petersburg, save the device timezone once:
+For Moscow and Saint Petersburg, add the device timezone to `configs/config.local.toml` (or to a clock profile):
 
-```sh
-curl --fail-with-body -X PUT http://192.168.1.50/api/v1/system \
-  -H 'Content-Type: application/json' \
-  -d '{"tzName":"Europe/Moscow","tz":"MSK-3"}'
+```toml
+[clock.system]
+tzName = "Europe/Moscow"
+tz = "MSK-3"
 ```
 
-Replace the example address with your clock's URL. This saves Moscow time (UTC+3 year-round) on the device. The POSIX offset sign is reversed, hence `MSK-3`. You can also select **Europe/Moscow** in the clock's web UI under the system time settings.
+Run `make clock-deploy` to apply the settings along with the selected apps. Moscow time is UTC+3 year-round; the POSIX offset sign is reversed, hence `MSK-3`. You can also select **Europe/Moscow** in the clock's web UI under the system time settings.
 
 The device timezone controls the built-in time/date screens and local schedules. The separate `[server.weather] timezone` setting controls weather dates; it does not configure the clock's timezone. Set it to `"Europe/Moscow"` in your personal weather config for the same local dates. If the clock still shows the wrong time, check its NTP server and network access in the web UI.
 

@@ -11,6 +11,9 @@ func TestClockProfilesInheritSettingsWithoutSharingMutableMaps(t *testing.T) {
 	main := filepath.Join(dir, "main.toml")
 	fixture(t, main, `[clock]
 profiles = ["clocks/first.local.toml", "clocks/second.local.toml"]
+[clock.system]
+tzName = "Europe/Moscow"
+tz = "MSK-3"
 [clock.deploy]
 screens = ["weather-current"]
 services = ["display-policy"]
@@ -28,6 +31,9 @@ services = []
 `)
 	fixture(t, filepath.Join(dir, "clocks", "second.local.toml"), `[clock]
 urls = ["192.168.1.51"]
+[clock.system]
+tzName = "UTC"
+tz = "UTC0"
 [clock.services.display-policy]
 schedule_enabled = true
 `)
@@ -48,6 +54,9 @@ schedule_enabled = true
 
 	first := profiles[0].Clock
 	second := profiles[1].Clock
+	if first.System["tz"] != "MSK-3" || second.System["tz"] != "UTC0" || project.Clock.System["tz"] != "MSK-3" {
+		t.Fatal("system settings were not inherited independently")
+	}
 	if len(first.Deploy.Services) != 0 || !second.ScreenSelected("weather-current") ||
 		!first.ScreenSelected("weather-forecast") || second.ScreenSelected("weather-forecast") {
 		t.Fatalf("profile screen selections were not merged independently: %+v", profiles)

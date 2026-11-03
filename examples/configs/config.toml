@@ -3,6 +3,11 @@
 [clock]
 urls = ["http://localhost:8080"]
 
+# Optional device settings applied by make clock-deploy, e.g. Moscow UTC+3:
+# [clock.system]
+# tzName = "Europe/Moscow"
+# tz = "MSK-3"
+
 [clock.deploy]
 screens = ["*"]
 services = ["display-policy"]

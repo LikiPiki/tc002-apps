@@ -24,8 +24,31 @@ type Change struct {
 }
 
 type Plan struct {
-	Target  string   `json:"target"`
-	Changes []Change `json:"changes"`
+	Target       string         `json:"target"`
+	Changes      []Change       `json:"changes"`
+	SystemBefore map[string]any `json:"system_before,omitempty"`
+	SystemAfter  map[string]any `json:"system_after,omitempty"`
+}
+
+func (p *Plan) PrepareSystem(ctx context.Context, c *awtrix.Client, settings map[string]any) error {
+	if len(settings) == 0 {
+		return nil
+	}
+	current, err := c.SystemSettings(ctx)
+	if err != nil {
+		return err
+	}
+	p.SystemBefore = map[string]any{}
+	p.SystemAfter = map[string]any{}
+	for key, value := range settings {
+		before, exists := current[key]
+		if !exists {
+			return fmt.Errorf("unknown system setting %q", key)
+		}
+		p.SystemBefore[key] = before
+		p.SystemAfter[key] = value
+	}
+	return nil
 }
 
 func Equal(a, b any) bool {
@@ -37,6 +60,9 @@ func Equal(a, b any) bool {
 
 func Prepare(ctx context.Context, c *awtrix.Client, target string, scripts []clockapps.Script) (Plan, error) {
 	plan := Plan{Target: target}
+	if len(scripts) == 0 {
+		return plan, nil
+	}
 	capabilities, err := c.Capabilities(ctx)
 	if err != nil {
 		return plan, err
@@ -100,6 +126,9 @@ func prepareChange(ctx context.Context, client *awtrix.Client, script clockapps.
 
 func (p Plan) String() string {
 	out := "Deployment plan for " + p.Target + "\n"
+	if len(p.SystemAfter) > 0 {
+		out += fmt.Sprintf("  system: settings-change=%v\n", !Equal(p.SystemBefore, p.SystemAfter))
+	}
 	for _, ch := range p.Changes {
 		out += fmt.Sprintf("  %s: source-change=%v settings-change=%v\n", ch.Name, ch.SourceChanged, ch.SettingsChanged)
 	}
@@ -185,6 +214,16 @@ func (p Plan) Apply(ctx context.Context, client *awtrix.Client, window time.Dura
 			return report, err
 		}
 	}
+	if len(p.SystemAfter) > 0 {
+		report.System = "unchanged"
+		if !Equal(p.SystemBefore, p.SystemAfter) {
+			report.System = "unconfirmed"
+			if err := client.ConfigureSystem(ctx, p.SystemAfter); err != nil {
+				return report, fmt.Errorf("system settings: %w", err)
+			}
+			report.System = "applied"
+		}
+	}
 
 	return report, nil
 }
@@ -267,6 +306,20 @@ func (change Change) applySettings(ctx context.Context, client *awtrix.Client, r
 // Rollback restores existing scripts and their declared settings. Newly installed
 // apps are disabled instead of deleted because AWTRIX has no atomic delete API.
 func (p Plan) Rollback(ctx context.Context, c *awtrix.Client) error {
+	if len(p.SystemBefore) > 0 && !Equal(p.SystemBefore, p.SystemAfter) {
+		current, err := c.SystemSettings(ctx)
+		if err != nil {
+			return err
+		}
+		for key, before := range p.SystemBefore {
+			if !Equal(current[key], before) && !Equal(current[key], p.SystemAfter[key]) {
+				return fmt.Errorf("system setting %s changed since deployment; rollback stopped", key)
+			}
+		}
+		if err := c.ConfigureSystem(ctx, p.SystemBefore); err != nil {
+			return err
+		}
+	}
 	for i := len(p.Changes) - 1; i >= 0; i-- {
 		ch := p.Changes[i]
 		if !ch.SourceChanged && !ch.SettingsChanged {

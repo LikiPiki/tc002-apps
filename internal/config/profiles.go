@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,6 +89,7 @@ func readProfile(path string, defaults ClockConfig) (ClockProfile, error) {
 	profile.Clock.Screens = cloneSettings(defaults.Screens)
 	profile.Clock.Services = cloneSettings(defaults.Services)
 	profile.Clock.OnDemand = cloneSettings(defaults.OnDemand)
+	profile.Clock.System = maps.Clone(defaults.System)
 
 	if err := fields.Clock.apply(&profile.Clock, path); err != nil {
 		return profile, err

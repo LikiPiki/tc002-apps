@@ -23,6 +23,7 @@ type ClockConfig struct {
 	URLs        []string
 	Profiles    []string
 	ProfileName string
+	System      map[string]any
 	Deploy      ClockDeploy
 	Screens     AppSettings
 	Services    AppSettings

@@ -26,7 +26,10 @@ type Result struct {
 	FailedPhase  string
 }
 
-type Report struct{ Results []Result }
+type Report struct {
+	Results []Result
+	System  string `json:"system,omitempty"`
+}
 
 func Run(ctx context.Context, api API, scripts []clockapps.Script) (Report, error) {
 	report := Report{Results: make([]Result, len(scripts))}
@@ -84,6 +87,9 @@ func (r Report) String() string {
 	}
 
 	fmt.Fprintf(&out, "Deployment: %d/%d apps verified\n", verified, len(r.Results))
+	if r.System != "" {
+		fmt.Fprintf(&out, "  system: settings=%s\n", r.System)
+	}
 	for _, result := range r.Results {
 		fmt.Fprintf(&out, "  %s/%s: source=%s settings=%s verification=%s",
 			result.Kind, result.Name, result.Source, result.Settings, result.Verification)

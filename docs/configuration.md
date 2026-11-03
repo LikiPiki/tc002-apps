@@ -33,6 +33,20 @@ The weather provider fetches one reading per cycle and publishes it to the confi
 
 Explicit `--url` or `AWTRIX_URL` selects **one clock**, replacing the entire configured set. A matching configured clock retains its profile's screen settings; an unlisted address uses shared clock settings. This also keeps the virtual-clock environment confined to its sandbox target. Config parsing stays offline; `list`/`validate` show selections without probing the devices.
 
+## Device system settings
+
+Use `[clock.system]` for AWTRIX system API settings, including the clock's own timezone:
+
+```toml
+[clock.system]
+tzName = "Europe/Moscow"
+tz = "MSK-3"
+```
+
+`make clock-deploy` applies these values after the selected Berry apps, including when `APP=...` selects a single app. Settings merge by key across shared config, personal overrides and device profiles. Only declared keys are sent to `PUT /api/v1/system`; unknown keys are rejected against the device's current settings before deployment. Unchanged settings are not rewritten, and successful writes are read back for verification.
+
+The deployment dry run includes system-setting changes. Recovery records capture the previous values of declared keys, and `clockctl rollback` restores them. System-only deployment is supported with empty app selections. Device settings are applied by deployment, not by the running weather server. `[server.weather] timezone` independently controls weather dates.
+
 ## Different clock configurations from the main config
 
 The main/personal config lists any number of files:
