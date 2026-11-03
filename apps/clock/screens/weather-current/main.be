@@ -1,6 +1,6 @@
 # @name Weather Now
 # @desc Today's weather: temperature, feels-like, wind, condition and range gauge.
-# @version 2.0.0
+# @version 2.0.2
 # @display 52x16
 
 class WeatherCurrent
@@ -45,27 +45,27 @@ class WeatherCurrent
 
   def draw_icon(kind, daylight)
     if kind == "CLEAR" && daylight
-      self.sprite(20, 6, ["0000001000000", "0010001000100", "0001111111000", "0011111111100", "1111111111111", "0011111111100", "0001111111000", "0010001000100"], 0xEFBB66)
+      self.sprite(20, 5, ["0000001000000", "0010001000100", "0001111111000", "0011111111100", "1111111111111", "0011111111100", "0001111111000", "0010001000100"], 0xEFBB66)
       return
     end
     if kind == "CLEAR"
-      circle_fill(26, 9, 3, 0x99BBFF)
-      circle_fill(28, 8, 2, 0x000000)
+      circle_fill(26, 8, 3, 0x99BBFF)
+      circle_fill(28, 7, 2, 0x000000)
       return
     end
 
-    self.sprite(20, 6, ["0000111000000", "0001111100000", "0111111111000", "1111111111110", "1111111111111", "0111111111110"], 0xA3AFA9)
+    self.sprite(20, 5, ["0000111000000", "0001111100000", "0111111111000", "1111111111110", "1111111111111", "0111111111110"], 0xA3AFA9)
     if kind == "RAIN" || kind == "DRIZZLE"
-      self.sprite(20, 12, ["0010010010000", "0100100100000"], 0x3E9CFA)
+      self.sprite(20, 11, ["0010010010000", "0100100100000"], 0x3E9CFA)
     elif kind == "SNOW"
-      self.sprite(20, 12, ["0100100100000", "0010010010000"], 0xEEF1EA)
+      self.sprite(20, 11, ["0100100100000", "0010010010000"], 0xEEF1EA)
     elif kind == "STORM"
-      line(27, 10, 25, 12, 0xEFBB66)
-      line(25, 12, 28, 12, 0xEFBB66)
-      pixel(27, 13, 0xEFBB66)
+      line(27, 9, 25, 11, 0xEFBB66)
+      line(25, 11, 28, 11, 0xEFBB66)
+      pixel(27, 12, 0xEFBB66)
     elif kind == "FOG"
-      line(21, 12, 31, 12, 0xA3AFA9)
-      line(23, 13, 29, 13, 0xA3AFA9)
+      line(21, 11, 31, 11, 0xA3AFA9)
+      line(23, 12, 29, 12, 0xA3AFA9)
     end
   end
 
