@@ -42,7 +42,6 @@ help:
 		'make lan-doctor     Diagnose the physical clock from the container network' \
 		'make lan-down       Stop local LAN servers' \
 		'make clock-list     Show target and selected Berry apps' \
-		'make clock-timezone-moscow  Save UTC+3 on the clock selected by AWTRIX_URL' \
 		'make clock-validate Validate clock settings offline' \
 		'make clock-deploy   Upload Berry apps (APP=<name> selects one)' \
 		'make clock-check    Check Berry apps in disposable AWTRIX (CHECK_ALL=true for all apps)' \
@@ -57,10 +56,6 @@ help:
 
 init-config:
 	sh scripts/init-config.sh "$$CONFIG"
-
-.PHONY: clock-timezone-moscow
-clock-timezone-moscow:
-	sh scripts/set-moscow-timezone.sh
 
 clock-check:
 	sh scripts/check-clock.sh
