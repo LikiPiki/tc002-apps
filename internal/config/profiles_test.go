@@ -26,7 +26,7 @@ label = "SPB"
 	fixture(t, filepath.Join(dir, "clocks", "first.local.toml"), `[clock]
 urls = ["192.168.1.50"]
 [clock.deploy]
-screens = ["weather-current", "weather-forecast"]
+screens = ["weather-current", "cigar"]
 services = []
 `)
 	fixture(t, filepath.Join(dir, "clocks", "second.local.toml"), `[clock]
@@ -58,7 +58,7 @@ schedule_enabled = true
 		t.Fatal("system settings were not inherited independently")
 	}
 	if len(first.Deploy.Services) != 0 || !second.ScreenSelected("weather-current") ||
-		!first.ScreenSelected("weather-forecast") || second.ScreenSelected("weather-forecast") {
+		!first.ScreenSelected("cigar") || second.ScreenSelected("cigar") {
 		t.Fatalf("profile screen selections were not merged independently: %+v", profiles)
 	}
 
@@ -79,7 +79,7 @@ schedule_enabled = true
 
 	if project.Clock.ProfileName != "second" ||
 		!reflect.DeepEqual(project.Clock.Targets(), []string{"http://192.168.1.51/"}) ||
-		project.Clock.ScreenSelected("weather-forecast") {
+		project.Clock.ScreenSelected("cigar") {
 		t.Fatal("explicit device override lost its matching profile")
 	}
 }

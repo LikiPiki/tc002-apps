@@ -1,14 +1,13 @@
 # Weather
 
-One VPS process fetches [Open-Meteo](https://open-meteo.com/) weather and supplies two independent Berry screens over the AWTRIX HTTP API. The personal/noncommercial API requires no key. Data attribution: Open-Meteo.com, [CC BY 4.0](https://open-meteo.com/en/terms).
+One VPS process fetches [Open-Meteo](https://open-meteo.com/) weather and supplies one daily-summary Berry screen over the AWTRIX HTTP API. The personal/noncommercial API requires no key. Data attribution: Open-Meteo.com, [CC BY 4.0](https://open-meteo.com/en/terms).
 
 ## Components
 
 - `apps/server/internal/weatherprovider`: fetches, validates and publishes weather inside the complete `apps/server/cmd/server` process.
-- `apps/clock/screens/weather-current`: one static page with current temperature and a day/night/condition icon, plus today's minimum/maximum and precipitation probability.
-- `apps/clock/screens/weather-forecast`: three daily forecasts, cycling every three seconds during a nine-second turn. Each page shows a weekday, precipitation probability and minimum/maximum temperature.
+- `apps/clock/screens/weather-current`: one static page with current temperature, feels-like temperature and wind above a large condition icon and today's minimum/maximum range gauge. White marks the current temperature, amber the feels-like value, and green the wind speed. The range marker is clamped to today's forecast; equal minimum/maximum uses the midpoint.
 
-The two screens participate in the normal app rotation independently. Select only `weather-current` for a single-page weather overview; `weather-forecast` is optional for the following three days. Neither the provider nor the screens change display power or force an active app.
+The summary participates in normal app rotation without internal paging or precipitation percentages. Neither the provider nor the screen changes display power or forces an active app.
 
 ## Configure your location
 
@@ -23,7 +22,7 @@ latitude = 59.9386
 longitude = 30.3141
 label = "SPB"
 timezone = "Europe/Moscow"
-screens = ["weather-current", "weather-forecast"]
+screens = ["weather-current"]
 ```
 
 Both coordinates are required; zero is valid. `label` accepts 1-8 ASCII letters/digits/spaces/underscores/hyphens for the small display font. `timezone = "auto"` uses the coordinates' timezone; an explicit IANA timezone also works. Timezone data is embedded in the provider, so validation and date handling work in minimal containers and across DST changes.
@@ -42,27 +41,27 @@ This fetches one reading and prints formatted JSON without connecting to any clo
 
 ```sh
 make clock-deploy APP=weather-current
-make clock-deploy APP=weather-forecast
 
 # Fetch and publish once:
 go run ./apps/server/cmd/server --once
 
-# Show either installed screen:
+# Show the summary:
 make clock-show APP=weather-current
-make clock-show APP=weather-forecast
 
 # Run continuously on the VPS:
 sh deploy/deploy.sh
 docker compose -f deploy/compose.yaml logs -f server
 ```
 
-`screens` names the installed consumers on each clock. For a current-only installation, set `screens = ["weather-current"]`. One VPS fetches weather once per cycle and sends the same reading to every device in `[clock] urls`. Deployment selections and running Compose services remain independent of the Go build selection. `AWTRIX_URL` selects one target instead of the list when publishing; it is ignored by `--print`.
+`screens` names the installed consumers on each clock; the bundled consumer is `weather-current`. One VPS fetches weather once per cycle and sends the same reading to every device in `[clock] urls`. Deployment selections and running Compose services remain independent of the Go build selection. `AWTRIX_URL` selects one target instead of the list when publishing; it is ignored by `--print`.
 
-For different clock screen sets, list any number of profile files under `[clock] profiles` in the main config. Profiles contain only clock settings; weather coordinates, source and polling settings remain common. Delivery automatically intersects `server.weather.screens` with each profile's `clock.deploy.screens`. A profile selecting only `weather-current` receives current-weather data without attempting to write `weather-forecast`. Profiles with no selected weather consumers are skipped entirely. See [clock profiles](../configuration.md#different-clock-configurations-from-the-main-config).
+For different clock screen sets, list any number of profile files under `[clock] profiles` in the main config. Profiles contain only clock settings; weather coordinates, source and polling settings remain common. Delivery automatically intersects `server.weather.screens` with each profile's `clock.deploy.screens`. Profiles without the weather summary are skipped. See [clock profiles](../configuration.md#different-clock-configurations-from-the-main-config).
+
+When upgrading, remove `weather-forecast` from local selections and disable or delete the old script through the clock's web UI. Only `weather-current` remains in the bundled catalog; deployment does not automatically remove previously installed scripts.
 
 The clock's configured HTTP address must be reachable from the VPS. If it is on your home LAN, provide routing/VPN access between the VPS and that network.
 
-For the regular dev clock, deploy the screens to the local instance and run `make dev-server`, or `docker compose -p tc002-dev -f dev/compose.yaml run --rm --build server --once` for one update. The complete server reads your location and overrides only the clock URL with the internal virtual-clock address.
+For the regular dev clock, deploy the summary to the local instance and run `make dev-server`, or `docker compose -p tc002-dev -f dev/compose.yaml run --rm --build server --once` for one update. The complete server reads your location and overrides only the clock URL with the internal virtual-clock address.
 
 For a local server connected to physical clocks on your LAN, use `make lan`, `make lan-logs`, `make lan-once`, and `make lan-down`. This mode reads `[clock] urls` and personal weather settings. Your VPS may have a different list in its own personal config. See [local server debugging](../development.md#local-server-with-physical-clocks).
 
@@ -125,7 +124,6 @@ Network errors, HTTP 429 and 5xx retry with bounded exponential backoff inside o
 make check
 make server-check
 make clock-check APP=weather-current LOCAL_CONFIG=
-make clock-check APP=weather-forecast LOCAL_CONFIG=
 ```
 
-`server-check` runs an isolated AWTRIX and a local Open-Meteo-shaped HTTP fixture. It exercises server data processing and both Berry screens, including initial/fresh/stale/unsupported-data states and forecast page rotation. It does not require an API key, internet weather access or physical hardware. CI runs the same integration plus Go tests for retries, timeout, null values, units and DST dates.
+`server-check` runs an isolated AWTRIX and a local Open-Meteo-shaped HTTP fixture. It exercises server data processing and the summary, including initial/fresh/stale/unsupported-data states, a stable single page, metric colors, weather conditions, negative temperatures and equal-range gauge positioning. It does not require an API key, internet weather access or physical hardware. CI runs the same integration plus Go tests for retries, timeout, null values, units and DST dates.

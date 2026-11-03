@@ -3,6 +3,7 @@ package weatherprovider
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -73,9 +74,53 @@ func TestWeatherClockIntegration(t *testing.T) {
 		waitWeatherFrame(t, ctx, client, name, 0x22CC66, nil)
 	}
 
-	// The forecast is one installed screen that cycles through the three days.
-	first := waitWeatherFrame(t, ctx, client, "weather-forecast", 0x22CC66, nil)
-	waitWeatherFrame(t, ctx, client, "weather-forecast", 0x22CC66, first.Pixels)
+	// The summary stays on one page, with all metrics visible together.
+	first := waitWeatherFrame(t, ctx, client, "weather-current", 0x22CC66, nil)
+	time.Sleep(3200 * time.Millisecond)
+	second := waitWeatherFrame(t, ctx, client, "weather-current", 0x22CC66, nil)
+	if !slices.Equal(first.Pixels, second.Pixels) {
+		t.Fatal("weather summary changed pages")
+	}
+	for _, shade := range []uint32{0xEEF1EA, 0xEFBB66, 0x62C891, 0x65B9EC} {
+		if !slices.Contains(first.Pixels, shade) {
+			t.Fatalf("weather summary is missing metric color %#x", shade)
+		}
+	}
+	for _, scenario := range []struct {
+		condition                    string
+		day                          bool
+		temp, feels, wind, low, high float64
+	}{
+		{"CLOUD", true, 5.9, 0.8, 6.2, 4.4, 7.1},
+		{"CLEAR", true, 23, 25, 2, 17, 26},
+		{"CLEAR", false, 0, 0, 0, 0, 0},
+		{"SNOW", true, -100, -120, 150, -100, -99},
+		{"RAIN", true, 8, 4, 9, 5, 11},
+		{"DRIZZLE", true, 8, 4, 9, 5, 11},
+		{"STORM", true, 8, 4, 9, 5, 11},
+		{"FOG", true, 8, 4, 9, 5, 11},
+	} {
+		reading.Current.Condition = scenario.condition
+		reading.Current.IsDay = scenario.day
+		reading.Current.TemperatureC = scenario.temp
+		reading.Current.FeelsLikeC = scenario.feels
+		reading.Current.WindSpeedMS = scenario.wind
+		reading.Today.MinimumC = scenario.low
+		reading.Today.MaximumC = scenario.high
+		if err := Publish(ctx, client, settings, reading); err != nil {
+			t.Fatal(err)
+		}
+		showWeatherScreen(t, ctx, client, "weather-current")
+		frame := waitWeatherFrame(t, ctx, client, "weather-current", 0x22CC66, nil)
+		position := 0.5
+		if scenario.high != scenario.low {
+			position = (scenario.temp - scenario.low) / (scenario.high - scenario.low)
+		}
+		marker := 17 + int(math.Round(16*max(0, min(1, position))))
+		if frame.Pixels[15*52+marker] != 0xEEF1EA {
+			t.Fatalf("%s: range marker is misplaced", scenario.condition)
+		}
+	}
 
 	reading.UpdatedAtMS = strconv.FormatInt(now.Add(-3*time.Hour).UnixMilli(), 10)
 	if err := Publish(ctx, client, settings, reading); err != nil {
@@ -147,7 +192,7 @@ func waitWeatherFrame(t *testing.T, ctx context.Context, client *awtrix.Client, 
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
 		case <-deadline.C:
-			t.Fatalf("%s did not render expected marker %#x or a changed forecast page", name, marker)
+			t.Fatalf("%s did not render the expected weather frame with marker %#x", name, marker)
 		case <-time.After(100 * time.Millisecond):
 		}
 	}

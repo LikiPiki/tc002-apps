@@ -69,7 +69,7 @@ Each file contains **only `[clock]` settings**. For example, `main.local.toml`:
 urls = ["192.168.1.50"]
 
 [clock.deploy]
-screens = ["weather-current", "weather-forecast", "cigar"]
+screens = ["weather-current", "cigar"]
 services = []
 on_demand = []
 ```
@@ -90,7 +90,7 @@ Copy the host-side templates from `examples/configs/clocks/` into `configs/clock
 
 Clock settings inherit shared + personal defaults, then the individual profile overrides them. This includes deployment selections and Berry settings such as `[clock.services.display-policy]`. The profile name in reports comes from its filename (`main.local.toml` → `main`). All selected source files are validated before any clock writes. Unknown fields, missing files, duplicate names, nested profiles and an address assigned to different profiles fail before deployment.
 
-VPS configuration stays in the main config. Profiles cannot override `[server]` or `[tools]`. Weather is fetched once per cycle and remains common to all clocks; each profile receives data only for its selected weather screens. A current-only profile does not get writes to `weather-forecast`. A profile with no consumers for a provider is left out of that provider's audience.
+VPS configuration stays in the main config. Profiles cannot override `[server]` or `[tools]`. Weather is fetched once per cycle and remains common to all clocks; each profile selecting `weather-current` receives the daily summary. A profile with no consumers for a provider is left out of that provider's audience.
 
 Use `make clock-list` to preview the profile → address → screen mapping, then `make clock-deploy` to apply all profiles. `APP=...` explicitly overrides the per-profile app selection. To operate on one existing device while retaining its profile settings, pass its address with `--url`/`AWTRIX_URL`. Profiles choose what to upload; existing apps omitted from a new selection are not automatically deleted or disabled.
 

@@ -4,6 +4,6 @@
 urls = ["192.168.1.50"]
 
 [clock.deploy]
-screens = ["weather-current", "weather-forecast", "cigar", "mackerel", "seagull"]
+screens = ["weather-current", "cigar", "mackerel", "seagull"]
 services = []
 on_demand = []

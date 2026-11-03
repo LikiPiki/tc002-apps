@@ -8,7 +8,7 @@ This repository is a small toolkit with autonomous clock apps and a weather inte
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - A list of clock profile files can assign different screen sets/settings to any number of devices; unreachable/non-AWTRIX targets are skipped with warnings. One VPS serves the configured profiles with common data sources. See [clock profiles](docs/configuration.md#different-clock-configurations-from-the-main-config).
-- `tc002-server` is one process/container containing all server features. It fetches Open-Meteo weather for two screens and can print readings directly on the VPS. See [weather setup](docs/integrations/weather.md).
+- `tc002-server` is one process/container containing all server features. It fetches Open-Meteo weather for a single daily-summary screen and can print readings directly on the VPS. See [weather setup](docs/integrations/weather.md).
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
 
@@ -95,7 +95,7 @@ Generated locally (not committed):
 | Send something to my TC002 | [Clock setup](docs/setup.md), [Go commands](docs/commands.md) | Set `AWTRIX_URL` and run `clockctl` |
 | Write an app that runs on the clock | [Clock apps](apps/clock/README.md) | Choose a lifecycle and add `apps/clock/<kind>/<name>/main.be` |
 | Add server-side data processing | [Server](apps/server/README.md) | Add a feature under `apps/server/internal/` and wire it into `cmd/server` |
-| Show weather on the VPS and clock | [Weather integration](docs/integrations/weather.md) | Configure coordinates, run `tc002-server --print`, then deploy the two screens |
+| Show weather on the VPS and clock | [Weather integration](docs/integrations/weather.md) | Configure coordinates, run `tc002-server --print`, then deploy `weather-current` |
 | Manage clocks or development workflows | [Utility apps](apps/tools/README.md) | Use `clockctl` or the Make commands |
 | Build and deploy the server | [VPS deployment](docs/deployment.md) | Run `make docker-save-server` or `sh deploy/deploy.sh` |
 | Plan a screen/VPS integration (alpha) | [Integration design](docs/integrations.md) | Explore the ID/contract convention; automatic pairing is not implemented |

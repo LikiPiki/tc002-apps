@@ -69,11 +69,10 @@ timezone = "Europe/Moscow"
 
 For different screen sets, replace `urls` with `profiles = ["clocks/main.local.toml", "clocks/second.local.toml", ...]`. The same `make lan` process reads all referenced profiles from the mounted config directory; weather remains common while delivery follows each profile's selected screens. Profile paths are resolved relative to the config that lists them. See [clock profiles](configuration.md#different-clock-configurations-from-the-main-config).
 
-Install the weather screens once, then start the local service:
+Install the weather summary once, then start the local service:
 
 ```sh
 make clock-deploy APP=weather-current
-make clock-deploy APP=weather-forecast
 make lan-doctor
 make lan
 make lan-logs
@@ -101,7 +100,7 @@ For IDE breakpoints or native Go debugging, run `go run ./apps/server/cmd/server
 
 - **Cannot reach the clock:** run `make lan-doctor`. If the host can reach its IP but the container cannot, check Docker/VM routing and the host VPN. Use the LAN address of the clock rather than `localhost`.
 - **Weather does not change after an edit:** use `make lan-once` for an immediate request, `make lan` after Go changes, or `make lan-restart` after config changes.
-- **Clock reports a missing app:** install both weather screens or select the installed consumers in `server.weather.screens`.
+- **Clock reports a missing app:** install `weather-current` and select it in `server.weather.screens`.
 - **Data arrives but the display is dark:** the headless display-policy service still controls power according to the configured schedule.
 
 ## Virtual clock

@@ -175,7 +175,9 @@ func TestPublishAttemptsEveryScreenAfterPartialFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = Publish(t.Context(), client, testSettings(), Reading{Version: 1})
+	settings := testSettings()
+	settings.Screens = []string{"weather-current", "weather-copy"}
+	err = Publish(t.Context(), client, settings, Reading{Version: 1})
 	if err == nil || !strings.Contains(err.Error(), "weather-current") || requests.Load() != 2 {
 		t.Fatalf("partial publication: requests=%d error=%v", requests.Load(), err)
 	}
@@ -187,7 +189,7 @@ func testSettings() Settings {
 		Longitude: 37.62,
 		Label:     "HOME",
 		Timezone:  "auto",
-		Screens:   []string{"weather-current", "weather-forecast"},
+		Screens:   []string{"weather-current"},
 		Interval:  15 * time.Minute,
 		Timeout:   5 * time.Second,
 		TTL:       2 * time.Hour,

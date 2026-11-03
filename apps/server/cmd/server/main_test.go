@@ -39,7 +39,7 @@ func TestOneVPSFetchPublishesToEveryClockDespitePartialFailure(t *testing.T) {
 		screens := `["weather-current"]`
 		count := int32(1)
 		if index%2 == 1 {
-			screens = `["weather-current", "weather-forecast"]`
+			screens = `["weather-current", "weather-copy"]`
 			count = 2
 		}
 
@@ -71,7 +71,7 @@ func TestOneVPSFetchPublishesToEveryClockDespitePartialFailure(t *testing.T) {
 
 	source := &fixedWeather{}
 	settings := weatherprovider.Settings{
-		Screens: []string{"weather-current", "weather-forecast"},
+		Screens: []string{"weather-current", "weather-copy"},
 	}
 
 	if err := serve(t.Context(), source, profiles, settings, true); err != nil {
@@ -99,7 +99,7 @@ func weatherClock(t *testing.T, failPublication bool) (*httptest.Server, *atomic
 			fmt.Fprint(w, `{"boardType":"tc002","scriptingRunning":true}`)
 		case "/api/v1/capabilities":
 			fmt.Fprint(w, `{"scriptUpdates":true}`)
-		case "/api/v1/apps/weather-current/data", "/api/v1/apps/weather-forecast/data":
+		case "/api/v1/apps/weather-current/data", "/api/v1/apps/weather-copy/data":
 			writes.Add(1)
 
 			var payload map[string]weatherprovider.Reading

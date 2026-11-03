@@ -19,7 +19,7 @@ urls = ["192.168.1.50", "192.168.1.51"]
 # longitude = 30.3141
 # label = "SPB"
 # timezone = "Europe/Moscow" # Or "auto" to use the coordinates' timezone.
-# screens = ["weather-current", "weather-forecast"]
+# screens = ["weather-current"]
 
 # [tools]
 # apps = ["clockctl"] # Use [] to skip utility build artifacts.

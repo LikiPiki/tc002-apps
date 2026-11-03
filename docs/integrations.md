@@ -14,7 +14,7 @@ Give the feature a stable ID, such as `weather`, and document its wiring togethe
 
 ```text
 weather
-├── consumers: apps/clock/screens/weather-current/ and weather-forecast/
+├── consumer: apps/clock/screens/weather-current/
 ├── producer: apps/server/internal/weatherprovider/ in cmd/server
 └── contract: docs/integrations/weather.md
 ```

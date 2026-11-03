@@ -22,7 +22,7 @@ off = "20:00"
 # Set your coordinates here or in the optional config.local.toml override.
 label = "HOME"
 timezone = "auto"
-screens = ["weather-current", "weather-forecast"]
+screens = ["weather-current"]
 interval = "15m"
 timeout = "15s"
 ttl = "2h"

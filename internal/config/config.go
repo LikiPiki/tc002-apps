@@ -63,7 +63,7 @@ func Load(base, personal string) (Config, error) {
 	c.Server.Weather = WeatherConfig{
 		Label:    "HOME",
 		Timezone: "auto",
-		Screens:  []string{"weather-current", "weather-forecast"},
+		Screens:  []string{"weather-current"},
 		Interval: "15m",
 		Timeout:  "15s",
 		TTL:      "2h",
