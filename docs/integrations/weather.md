@@ -5,10 +5,10 @@ One VPS process fetches [Open-Meteo](https://open-meteo.com/) weather and suppli
 ## Components
 
 - `apps/server/internal/weatherprovider`: fetches, validates and publishes weather inside the complete `apps/server/cmd/server` process.
-- `apps/clock/screens/weather-current`: current temperature, wind speed, location label and a day/night/condition icon.
+- `apps/clock/screens/weather-current`: one static page with current temperature and a day/night/condition icon, plus today's minimum/maximum and precipitation probability.
 - `apps/clock/screens/weather-forecast`: three daily forecasts, cycling every three seconds during a nine-second turn. Each page shows a weekday, precipitation probability and minimum/maximum temperature.
 
-The two screens participate in the normal app rotation independently. Deploy both or select only the screen you need. Neither the provider nor the screens change display power or force an active app.
+The two screens participate in the normal app rotation independently. Select only `weather-current` for a single-page weather overview; `weather-forecast` is optional for the following three days. Neither the provider nor the screens change display power or force an active app.
 
 ## Configure your location
 
@@ -87,6 +87,15 @@ The producer writes the same versioned object to each selected consumer using `P
       "condition": "CLEAR",
       "is_day": true
     },
+    "today": {
+      "date": "2026-10-21",
+      "weekday": "Wed",
+      "minimum_c": 4,
+      "maximum_c": 12,
+      "precipitation_probability_percent": 30,
+      "weather_code": 3,
+      "condition": "CLOUD"
+    },
     "days": [
       {
         "date": "2026-10-22",
@@ -102,7 +111,7 @@ The producer writes the same versioned object to each selected consumer using `P
 }
 ```
 
-The shortened example shows one forecast entry; actual readings contain three, starting with tomorrow in the selected timezone. Precipitation probability includes snow as well as rain. Conditions are `CLEAR`, `CLOUD`, `FOG`, `DRIZZLE`, `RAIN`, `SNOW` and `STORM`.
+The `today` object contains the forecast for the current local date. The shortened `days` example shows one future forecast entry; actual readings contain three, starting with tomorrow in the selected timezone. The additive `today` field keeps the existing future-day contract compatible. Precipitation probability includes snow as well as rain. Conditions are `CLEAR`, `CLOUD`, `FOG`, `DRIZZLE`, `RAIN`, `SNOW` and `STORM`.
 
 `updated_at_ms` is the **source observation time**, not the time a response was fetched. It is a string to avoid 32-bit Berry integer overflow. Expired or implausibly future source readings, missing/null values, wrong units and incomplete daily arrays are rejected before publication. A source error does not replace the last known weather with invented zero values.
 

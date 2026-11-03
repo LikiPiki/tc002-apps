@@ -1,6 +1,6 @@
 # @name Weather Now
-# @desc Current weather from the VPS Open-Meteo provider.
-# @version 1.0.0
+# @desc Current temperature and today's range and precipitation probability.
+# @version 1.1.0
 # @display 52x16
 
 class WeatherCurrent
@@ -79,22 +79,26 @@ class WeatherCurrent
     end
 
     var current = self.reading.find("current")
-    if !isinstance(current, map)
+    var today = self.reading.find("today")
+    if !isinstance(current, map) || !isinstance(today, map)
       self.draw_state("NO DATA")
       return
     end
 
     var temperature = num(current.find("temperature_c"))
-    var wind = num(current.find("wind_speed_ms"))
-    var label = self.reading.find("label")
-    if temperature == nil || wind == nil || type(label) != "string"
+    var low = num(today.find("minimum_c"))
+    var high = num(today.find("maximum_c"))
+    var rain = num(today.find("precipitation_probability_percent"))
+    if temperature == nil || low == nil || high == nil || rain == nil
       self.draw_state("NO DATA")
       return
     end
 
     self.draw_icon(current.find("condition"), current.find("is_day"))
-    text(10, 6, label, 0xFFFFFF)
-    text(0, 14, format("%dC %dm/s", round(temperature), round(wind)), 0x66CCFF)
+    text(12, 6, format("%dC", round(temperature)), 0xFFFFFF)
+    text(0, 14, format("%d/%d", round(low), round(high)), 0x66CCFF)
+    var chance = format("%d%%", round(rain))
+    text(52 - size(chance) * 4, 14, chance, rain >= 50 ? 0x3399FF : 0xAAAAAA)
     pixel(51, 0, 0x22CC66)
   end
 end

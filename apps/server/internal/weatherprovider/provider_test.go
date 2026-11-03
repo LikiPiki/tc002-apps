@@ -47,8 +47,11 @@ func TestFetchUsesCoordinatesAndNormalizesThreeFutureDays(t *testing.T) {
 	}
 
 	// The forecast crosses the DST boundary and must still use consecutive local dates.
-	if reading.Days[0].Date != "2026-03-29" || reading.Days[2].Date != "2026-03-31" {
+	if reading.Today.Date != "2026-03-28" || reading.Days[0].Date != "2026-03-29" || reading.Days[2].Date != "2026-03-31" {
 		t.Fatalf("incorrect local forecast dates: %+v", reading.Days)
+	}
+	if reading.Today.MinimumC != 4 || reading.Today.MaximumC != 12 || reading.Today.PrecipitationProbabilityPercent != 0 {
+		t.Fatalf("incorrect today's forecast: %+v", reading.Today)
 	}
 }
 

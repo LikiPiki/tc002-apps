@@ -13,6 +13,7 @@ type Reading struct {
 	UpdatedAtMS string  `json:"updated_at_ms"`
 	TTLSeconds  int64   `json:"ttl_seconds"`
 	Current     Current `json:"current"`
+	Today       Day     `json:"today"`
 	Days        []Day   `json:"days"`
 }
 
@@ -97,7 +98,8 @@ func normalize(raw forecastResponse, settings Settings, now time.Time) (Reading,
 		UpdatedAtMS: strconv.FormatInt(observed.UnixMilli(), 10),
 		TTLSeconds:  int64(settings.TTL / time.Second),
 		Current:     current,
-		Days:        days,
+		Today:       days[0],
+		Days:        days[1:],
 	}, nil
 }
 
@@ -131,7 +133,7 @@ func normalizeDays(raw forecastResponse, today time.Time, location *time.Locatio
 		return nil, fmt.Errorf("Open-Meteo daily forecast must contain four complete days")
 	}
 
-	days := make([]Day, 0, 3)
+	days := make([]Day, 0, 4)
 	for index := range daily.Time {
 		date := time.Unix(daily.Time[index], 0).In(location)
 		if date.Format("2006-01-02") != today.AddDate(0, 0, index).Format("2006-01-02") ||
@@ -141,10 +143,6 @@ func normalizeDays(raw forecastResponse, today time.Time, location *time.Locatio
 			!validNumber(daily.RainChancePercent[index], 0, 100) ||
 			daily.WeatherCode[index] == nil || condition(*daily.WeatherCode[index]) == "" {
 			return nil, fmt.Errorf("Open-Meteo forecast day %d is incomplete or invalid", index)
-		}
-
-		if index == 0 {
-			continue
 		}
 
 		days = append(days, Day{
