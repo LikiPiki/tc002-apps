@@ -13,6 +13,20 @@ This project targets the **Ulanzi TC002 running AWTRIX NG**. The stock Ulanzi fi
 
 The initial client expects an HTTP API without authentication. If your setup requires authentication, client support must be added before use.
 
+## Clock timezone
+
+For Moscow and Saint Petersburg, save the device timezone once:
+
+```sh
+AWTRIX_URL=http://192.168.1.50 make clock-timezone-moscow
+```
+
+Replace the example address with your clock's URL. Run the command for each device. It persists `tzName = "Europe/Moscow"` and the POSIX rule `tz = "MSK-3"` through the AWTRIX system API, changing only those two settings. Moscow is UTC+3 year-round; the POSIX offset sign is reversed. The command requires `curl` and an unauthenticated AWTRIX NG HTTP API.
+
+The device timezone controls the built-in time/date screens and local schedules. The separate `[server.weather] timezone` setting controls weather dates; it does not configure the clock's timezone. Set it to `"Europe/Moscow"` in your personal weather config for the same local dates. If the clock still shows the wrong time, check its NTP server and network access in the web UI.
+
+## Clock apps
+
 Add Berry apps from `apps/clock/` through the Scripts tab. The Go CLI in `apps/tools/` manages the device; processes in `apps/server/` supply external data. Neither Go family is uploaded to the clock. Reference: [AWTRIX NG scripting](https://blueforcer.github.io/awtrix-ng/guides/scripting/).
 
 Run `make init-config` to create `configs/config.toml` once, then set your clock addresses under `[clock]`, for example `urls = ["192.168.1.50", "192.168.1.51"]`. Host-side templates are under `examples/configs/`; the runtime `configs/` directory stays untracked. Run `make clock-list` to inspect targets, `make clock-deploy` to upload selected apps, and `make clock-show APP=mackerel` to show one. Unreachable/non-clock addresses produce warnings while other clocks continue. See [configuration](configuration.md).
