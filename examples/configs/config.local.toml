@@ -18,7 +18,7 @@ urls = ["192.168.1.50", "192.168.1.51"]
 # latitude = 59.9386
 # longitude = 30.3141
 # label = "SPB"
-# timezone = "Europe/Moscow" # Or "auto" to use the coordinates' timezone.
+# timezone = "Europe/Moscow" # Explicit IANA timezone for the coordinates.
 # screens = ["weather-current"]
 
 # [tools]

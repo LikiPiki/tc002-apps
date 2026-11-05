@@ -78,7 +78,7 @@ make lan
 make lan-logs
 ```
 
-The weather provider sends a reading immediately and repeats at `server.weather.interval`. `make lan` starts it in the background, so stopping the log command with Ctrl-C leaves the service running. Use `make lan-down` to stop it. No inbound port needs publishing: the provider calls Open-Meteo and the clock's HTTP API through normal outbound Docker networking.
+The weather provider sends a reading immediately and repeats at `server.weather.interval`. `make lan` starts it in the background, so stopping the log command with Ctrl-C leaves the service running. Use `make lan-down` to stop it. No inbound port needs publishing: the provider calls wttr.in and the clock's HTTP API through normal outbound Docker networking.
 
 For a fast edit/test loop:
 

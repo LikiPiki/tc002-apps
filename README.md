@@ -8,7 +8,7 @@ This repository is a small toolkit with autonomous clock apps and a weather inte
 
 - `clockctl` sends notifications, deploys Berry scripts, and selects the displayed app over HTTP.
 - A list of clock profile files can assign different screen sets/settings to any number of devices; unreachable/non-AWTRIX targets are skipped with warnings. One VPS serves the configured profiles with common data sources. See [clock profiles](docs/configuration.md#different-clock-configurations-from-the-main-config).
-- `tc002-server` is one process/container containing all server features. It fetches Open-Meteo weather for a single daily-summary screen and can print readings directly on the VPS. See [weather setup](docs/integrations/weather.md).
+- `tc002-server` is one process/container containing all server features. It fetches wttr.in weather for a single daily-summary screen and can print readings directly on the VPS. See [weather setup](docs/integrations/weather.md).
 - `apps/clock/` contains on-device Berry apps, each with its own README.
 - A local virtual clock is available for development without TC002 hardware.
 

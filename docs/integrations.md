@@ -6,7 +6,7 @@ An integration is one user-facing feature that may span multiple runtime compone
 
 ## Current state
 
-The bundled Berry animations and display policy run autonomously. The unified server fetches Open-Meteo data for current-weather and forecast screens. All server functionality runs in one process/container. There is no cross-runtime registry, automatic pairing, or MQTT transport yet. Clock profiles choose screen sets independently.
+The bundled Berry animations and display policy run autonomously. The unified server fetches wttr.in data for the daily weather summary. All server functionality runs in one process/container. There is no cross-runtime registry, automatic pairing, or MQTT transport yet. Clock profiles choose screen sets independently.
 
 ## Convention for a real integration
 

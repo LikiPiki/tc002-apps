@@ -4,7 +4,7 @@ A single-page 52×16 daily weather summary. The top row shows the current temper
 
 The bottom row shows today's minimum (blue) and maximum (amber), with a large 13-pixel condition icon between them. The thin blue-to-amber range gauge has a white current-temperature marker, clamped to the forecast range; a constant-temperature day uses the midpoint. Temperatures are rounded Celsius values. No precipitation percentage or future-day pages are shown. The screen runs for ten seconds in normal rotation.
 
-The unified VPS server supplies weather data, including the `today` forecast; update the server together with this screen. The screen does not contact Open-Meteo or manage display power. Freshness is based on the source observation timestamp. Missing data shows `NO DATA`; expired data or unknown clock time shows `STALE`.
+The unified VPS server supplies wttr.in weather data, including the `today` forecast. The screen does not contact the weather source or manage display power. Freshness is based on the source observation timestamp. Missing data shows `NO DATA`; expired data or unknown clock time shows `STALE`.
 
 Install with `make clock-deploy APP=weather-current`. See the [weather integration](../../../../docs/integrations/weather.md) for location setup and server commands. Run `make clock-check APP=weather-current` for a runtime/GIF check or `make server-check` for the complete producer/consumer scenarios.
 

@@ -21,7 +21,7 @@ off = "20:00"
 [server.weather]
 # Set your coordinates here or in the optional config.local.toml override.
 label = "HOME"
-timezone = "auto"
+timezone = "UTC" # Set the coordinates' IANA timezone, e.g. Europe/Moscow.
 screens = ["weather-current"]
 interval = "15m"
 timeout = "15s"

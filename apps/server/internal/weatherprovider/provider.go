@@ -15,7 +15,7 @@ import (
 	"github.com/LikiPiki/tc002-apps/internal/awtrix"
 )
 
-const forecastURL = "https://api.open-meteo.com/v1/forecast"
+const forecastURL = "https://wttr.in"
 
 type Provider struct {
 	settings Settings
@@ -67,16 +67,11 @@ func (provider *Provider) requestURL() (string, error) {
 		return "", err
 	}
 
+	endpoint.Path = strings.TrimRight(endpoint.Path, "/") + "/" +
+		strconv.FormatFloat(provider.settings.Latitude, 'f', -1, 64) + "," +
+		strconv.FormatFloat(provider.settings.Longitude, 'f', -1, 64)
 	query := endpoint.Query()
-	query.Set("latitude", strconv.FormatFloat(provider.settings.Latitude, 'f', -1, 64))
-	query.Set("longitude", strconv.FormatFloat(provider.settings.Longitude, 'f', -1, 64))
-	query.Set("timezone", provider.settings.Timezone)
-	query.Set("temperature_unit", "celsius")
-	query.Set("wind_speed_unit", "ms")
-	query.Set("timeformat", "unixtime")
-	query.Set("forecast_days", "4")
-	query.Set("current", "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day")
-	query.Set("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max")
+	query.Set("format", "j1")
 	endpoint.RawQuery = query.Encode()
 
 	return endpoint.String(), nil
@@ -91,17 +86,17 @@ func (provider *Provider) fetchOnce(ctx context.Context, endpoint string) (Readi
 
 	response, err := provider.http.Do(request)
 	if err != nil {
-		return Reading{}, true, fmt.Errorf("fetch Open-Meteo: %w", err)
+		return Reading{}, true, fmt.Errorf("fetch wttr.in: %w", err)
 	}
 	defer response.Body.Close()
 
 	const limit = 1 << 20
 	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
 	if err != nil {
-		return Reading{}, true, fmt.Errorf("read Open-Meteo: %w", err)
+		return Reading{}, true, fmt.Errorf("read wttr.in: %w", err)
 	}
 	if len(body) > limit {
-		return Reading{}, false, fmt.Errorf("Open-Meteo response exceeds 1 MiB")
+		return Reading{}, false, fmt.Errorf("wttr.in response exceeds 1 MiB")
 	}
 
 	if response.StatusCode != http.StatusOK {
@@ -111,12 +106,12 @@ func (provider *Provider) fetchOnce(ctx context.Context, endpoint string) (Readi
 		}
 
 		retry := response.StatusCode == http.StatusTooManyRequests || response.StatusCode >= 500
-		return Reading{}, retry, fmt.Errorf("Open-Meteo HTTP %d: %s", response.StatusCode, detail)
+		return Reading{}, retry, fmt.Errorf("wttr.in HTTP %d: %s", response.StatusCode, detail)
 	}
 
 	var forecast forecastResponse
 	if err := json.Unmarshal(body, &forecast); err != nil {
-		return Reading{}, false, fmt.Errorf("decode Open-Meteo: %w", err)
+		return Reading{}, false, fmt.Errorf("decode wttr.in: %w", err)
 	}
 
 	reading, err := normalize(forecast, provider.settings, provider.now())

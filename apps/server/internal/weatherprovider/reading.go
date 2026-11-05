@@ -37,130 +37,186 @@ type Day struct {
 	Condition                       string  `json:"condition"`
 }
 
+type wttrConditions struct {
+	Temperature string `json:"temp_C"`
+	FeelsLike   string `json:"FeelsLikeC"`
+	Humidity    string `json:"humidity"`
+	Wind        string `json:"windspeedKmph"`
+	Code        string `json:"weatherCode"`
+	Observed    string `json:"observation_time"`
+}
+
 type forecastResponse struct {
-	Timezone     string            `json:"timezone"`
-	CurrentUnits map[string]string `json:"current_units"`
-	DailyUnits   map[string]string `json:"daily_units"`
-	Current      struct {
-		Time            int64    `json:"time"`
-		TemperatureC    *float64 `json:"temperature_2m"`
-		FeelsLikeC      *float64 `json:"apparent_temperature"`
-		HumidityPercent *float64 `json:"relative_humidity_2m"`
-		WindSpeedMS     *float64 `json:"wind_speed_10m"`
-		WeatherCode     *int     `json:"weather_code"`
-		IsDay           *int     `json:"is_day"`
-	} `json:"current"`
-	Daily struct {
-		Time              []int64    `json:"time"`
-		MinimumC          []*float64 `json:"temperature_2m_min"`
-		MaximumC          []*float64 `json:"temperature_2m_max"`
-		RainChancePercent []*float64 `json:"precipitation_probability_max"`
-		WeatherCode       []*int     `json:"weather_code"`
-	} `json:"daily"`
+	Current []wttrConditions `json:"current_condition"`
+	Days    []struct {
+		Date      string `json:"date"`
+		Minimum   string `json:"mintempC"`
+		Maximum   string `json:"maxtempC"`
+		Astronomy []struct {
+			Sunrise string `json:"sunrise"`
+			Sunset  string `json:"sunset"`
+		} `json:"astronomy"`
+		Hourly []struct {
+			Time string `json:"time"`
+			Code string `json:"weatherCode"`
+			Rain string `json:"chanceofrain"`
+			Snow string `json:"chanceofsnow"`
+		} `json:"hourly"`
+	} `json:"weather"`
 }
 
 func normalize(raw forecastResponse, settings Settings, now time.Time) (Reading, error) {
-	location, err := time.LoadLocation(raw.Timezone)
-	if err != nil || raw.Timezone == "" || raw.Timezone == "Local" {
-		return Reading{}, fmt.Errorf("Open-Meteo returned an invalid timezone %q", raw.Timezone)
+	location, err := time.LoadLocation(settings.Timezone)
+	if err != nil || settings.Timezone == "" || settings.Timezone == "Local" {
+		return Reading{}, fmt.Errorf("wttr.in requires an explicit IANA timezone")
+	}
+	if len(raw.Current) != 1 || len(raw.Days) != 3 {
+		return Reading{}, fmt.Errorf("wttr.in must return current conditions and three forecast days")
+	}
+	current := raw.Current[0]
+	// wttr.in reports observation_time in UTC without a date. Use the most
+	// recent occurrence, including yesterday when the UTC day has just begun.
+	clock, err := time.Parse("03:04 PM", current.Observed)
+	if err != nil {
+		return Reading{}, fmt.Errorf("wttr.in observation time: %w", err)
+	}
+	utc := now.UTC()
+	observed := time.Date(utc.Year(), utc.Month(), utc.Day(), clock.Hour(), clock.Minute(), 0, 0, time.UTC)
+	if observed.After(now) {
+		observed = observed.AddDate(0, 0, -1)
+	}
+	if now.Sub(observed) >= settings.TTL {
+		return Reading{}, fmt.Errorf("wttr.in current weather has an expired timestamp")
 	}
 
-	if raw.CurrentUnits["temperature_2m"] != "°C" ||
-		raw.CurrentUnits["apparent_temperature"] != "°C" ||
-		raw.CurrentUnits["relative_humidity_2m"] != "%" ||
-		raw.CurrentUnits["wind_speed_10m"] != "m/s" ||
-		raw.DailyUnits["temperature_2m_min"] != "°C" ||
-		raw.DailyUnits["temperature_2m_max"] != "°C" ||
-		raw.DailyUnits["precipitation_probability_max"] != "%" {
-		return Reading{}, fmt.Errorf("Open-Meteo returned unexpected weather units")
+	values := []struct {
+		raw          string
+		minimum, max float64
+	}{
+		{current.Temperature, -100, 70},
+		{current.FeelsLike, -120, 90},
+		{current.Humidity, 0, 100},
+		{current.Wind, 0, 540},
 	}
-
-	observed := time.Unix(raw.Current.Time, 0)
-	age := now.Sub(observed)
-	if raw.Current.Time <= 0 || age < -5*time.Minute || age >= settings.TTL {
-		return Reading{}, fmt.Errorf("Open-Meteo current weather has an expired or future timestamp")
+	numbers := make([]float64, len(values))
+	for i, value := range values {
+		numbers[i], err = parseNumber(value.raw, value.minimum, value.max)
+		if err != nil {
+			return Reading{}, err
+		}
 	}
-
-	current, err := normalizeCurrent(raw)
+	code, err := wttrCode(current.Code)
 	if err != nil {
 		return Reading{}, err
 	}
 
-	days, err := normalizeDays(raw, now.In(location), location)
-	if err != nil {
-		return Reading{}, err
+	local := now.In(location)
+	days := make([]Day, 0, len(raw.Days))
+	for index, day := range raw.Days {
+		date, err := time.ParseInLocation("2006-01-02", day.Date, location)
+		if err != nil || day.Date != local.AddDate(0, 0, index).Format("2006-01-02") || len(day.Hourly) != 8 {
+			return Reading{}, fmt.Errorf("wttr.in forecast day %d is incomplete or has an invalid date", index)
+		}
+		low, lowErr := parseNumber(day.Minimum, -100, 70)
+		high, highErr := parseNumber(day.Maximum, -100, 70)
+		if lowErr != nil || highErr != nil || low > high {
+			return Reading{}, fmt.Errorf("wttr.in forecast day %d has an invalid temperature range", index)
+		}
+		var chance float64
+		for hour, entry := range day.Hourly {
+			if entry.Time != strconv.Itoa(hour*300) {
+				return Reading{}, fmt.Errorf("wttr.in forecast day %d has invalid hourly times", index)
+			}
+			for _, value := range []string{entry.Rain, entry.Snow} {
+				number, err := parseNumber(value, 0, 100)
+				if err != nil {
+					return Reading{}, err
+				}
+				chance = max(chance, number)
+			}
+			if _, err := wttrCode(entry.Code); err != nil {
+				return Reading{}, err
+			}
+		}
+		// Use the noon forecast for the daily condition.
+		dailyCode, _ := wttrCode(day.Hourly[4].Code)
+		days = append(days, Day{
+			Date:                            day.Date,
+			Weekday:                         date.Format("Mon"),
+			MinimumC:                        low,
+			MaximumC:                        high,
+			PrecipitationProbabilityPercent: chance,
+			WeatherCode:                     dailyCode,
+			Condition:                       condition(dailyCode),
+		})
 	}
-
+	if len(raw.Days[0].Astronomy) != 1 {
+		return Reading{}, fmt.Errorf("wttr.in is missing sunrise and sunset")
+	}
+	astronomy := raw.Days[0].Astronomy[0]
+	sunrise, riseErr := time.ParseInLocation("2006-01-02 03:04 PM", days[0].Date+" "+astronomy.Sunrise, location)
+	sunset, setErr := time.ParseInLocation("2006-01-02 03:04 PM", days[0].Date+" "+astronomy.Sunset, location)
+	if riseErr != nil || setErr != nil || !sunrise.Before(sunset) {
+		return Reading{}, fmt.Errorf("wttr.in has invalid sunrise or sunset")
+	}
 	return Reading{
 		Version:     1,
 		Label:       settings.Label,
-		Timezone:    raw.Timezone,
+		Timezone:    settings.Timezone,
 		UpdatedAtMS: strconv.FormatInt(observed.UnixMilli(), 10),
 		TTLSeconds:  int64(settings.TTL / time.Second),
-		Current:     current,
-		Today:       days[0],
-		Days:        days[1:],
+		Current: Current{
+			TemperatureC:    numbers[0],
+			FeelsLikeC:      numbers[1],
+			HumidityPercent: numbers[2],
+			WindSpeedMS:     numbers[3] / 3.6,
+			WeatherCode:     code,
+			Condition:       condition(code),
+			IsDay:           !local.Before(sunrise) && local.Before(sunset),
+		},
+		Today: days[0],
+		Days:  days[1:],
 	}, nil
 }
 
-func normalizeCurrent(raw forecastResponse) (Current, error) {
-	current := raw.Current
-	if !validNumber(current.TemperatureC, -100, 70) ||
-		!validNumber(current.FeelsLikeC, -120, 90) ||
-		!validNumber(current.HumidityPercent, 0, 100) ||
-		!validNumber(current.WindSpeedMS, 0, 150) ||
-		current.IsDay == nil || (*current.IsDay != 0 && *current.IsDay != 1) ||
-		current.WeatherCode == nil || condition(*current.WeatherCode) == "" {
-		return Current{}, fmt.Errorf("Open-Meteo current weather is incomplete or invalid")
+func parseNumber(raw string, minimum, maximum float64) (float64, error) {
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || !inRange(value, minimum, maximum) {
+		return 0, fmt.Errorf("wttr.in returned an invalid weather number %q", raw)
 	}
-
-	return Current{
-		TemperatureC:    *current.TemperatureC,
-		FeelsLikeC:      *current.FeelsLikeC,
-		HumidityPercent: *current.HumidityPercent,
-		WindSpeedMS:     *current.WindSpeedMS,
-		WeatherCode:     *current.WeatherCode,
-		Condition:       condition(*current.WeatherCode),
-		IsDay:           *current.IsDay == 1,
-	}, nil
+	return value, nil
 }
 
-func normalizeDays(raw forecastResponse, today time.Time, location *time.Location) ([]Day, error) {
-	daily := raw.Daily
-	count := len(daily.Time)
-	if count != 4 || len(daily.MinimumC) != count || len(daily.MaximumC) != count ||
-		len(daily.RainChancePercent) != count || len(daily.WeatherCode) != count {
-		return nil, fmt.Errorf("Open-Meteo daily forecast must contain four complete days")
-	}
-
-	days := make([]Day, 0, 4)
-	for index := range daily.Time {
-		date := time.Unix(daily.Time[index], 0).In(location)
-		if date.Format("2006-01-02") != today.AddDate(0, 0, index).Format("2006-01-02") ||
-			!validNumber(daily.MinimumC[index], -100, 70) ||
-			!validNumber(daily.MaximumC[index], -100, 70) ||
-			*daily.MinimumC[index] > *daily.MaximumC[index] ||
-			!validNumber(daily.RainChancePercent[index], 0, 100) ||
-			daily.WeatherCode[index] == nil || condition(*daily.WeatherCode[index]) == "" {
-			return nil, fmt.Errorf("Open-Meteo forecast day %d is incomplete or invalid", index)
+// Translate WorldWeatherOnline codes to the existing WMO clock contract.
+func wttrCode(raw string) (int, error) {
+	code, err := strconv.Atoi(raw)
+	if err == nil {
+		switch code {
+		case 113:
+			return 0, nil
+		case 116:
+			return 2, nil
+		case 119, 122:
+			return 3, nil
+		case 143, 248, 260:
+			return 45, nil
+		case 176, 263, 266:
+			return 51, nil
+		case 185, 281, 284:
+			return 56, nil
+		case 293, 296, 353:
+			return 61, nil
+		case 299, 302, 305, 308, 356, 359:
+			return 65, nil
+		case 182, 311, 314, 317, 320, 362, 365:
+			return 66, nil
+		case 179, 227, 230, 323, 326, 329, 332, 335, 338, 350, 368, 371, 374, 377:
+			return 73, nil
+		case 200, 386, 389, 392, 395:
+			return 95, nil
 		}
-
-		days = append(days, Day{
-			Date:                            date.Format("2006-01-02"),
-			Weekday:                         date.Format("Mon"),
-			MinimumC:                        *daily.MinimumC[index],
-			MaximumC:                        *daily.MaximumC[index],
-			PrecipitationProbabilityPercent: *daily.RainChancePercent[index],
-			WeatherCode:                     *daily.WeatherCode[index],
-			Condition:                       condition(*daily.WeatherCode[index]),
-		})
 	}
-
-	return days, nil
-}
-
-func validNumber(value *float64, minimum, maximum float64) bool {
-	return value != nil && inRange(*value, minimum, maximum)
+	return 0, fmt.Errorf("wttr.in returned an unknown weather code %q", raw)
 }
 
 func condition(code int) string {

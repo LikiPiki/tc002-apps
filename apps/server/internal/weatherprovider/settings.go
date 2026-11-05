@@ -44,10 +44,8 @@ func Parse(raw config.WeatherConfig) (Settings, error) {
 	if !labelPattern.MatchString(raw.Label) {
 		return settings, fmt.Errorf("server.weather.label requires 1-8 ASCII letters, digits, spaces, _ or -")
 	}
-	if raw.Timezone != "auto" {
-		if _, err := time.LoadLocation(raw.Timezone); err != nil || raw.Timezone == "" || raw.Timezone == "Local" {
-			return settings, fmt.Errorf("server.weather.timezone must be auto or an IANA timezone")
-		}
+	if _, err := time.LoadLocation(raw.Timezone); err != nil || raw.Timezone == "" || raw.Timezone == "Local" {
+		return settings, fmt.Errorf("server.weather.timezone must be an explicit IANA timezone (wttr.in does not resolve auto)")
 	}
 	if raw.Attempts < 1 || raw.Attempts > 5 {
 		return settings, fmt.Errorf("server.weather.attempts must be 1-5")
@@ -89,7 +87,7 @@ func Parse(raw config.WeatherConfig) (Settings, error) {
 		return settings, fmt.Errorf("server.weather.interval must be at least 1m")
 	}
 	if settings.TTL <= settings.Interval+settings.Timeout+15*time.Minute {
-		return settings, fmt.Errorf("server.weather.ttl must exceed interval + timeout + the 15m source update period")
+		return settings, fmt.Errorf("server.weather.ttl must exceed interval + timeout + a 15m freshness margin")
 	}
 
 	return settings, nil

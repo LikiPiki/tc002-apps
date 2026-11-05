@@ -25,6 +25,12 @@ func TestWeatherSettingsRequireLocationAndValidTiming(t *testing.T) {
 		t.Fatalf("zero coordinates must be valid: %v", err)
 	}
 
+	raw.Timezone = "auto"
+	if _, err := Parse(raw); err == nil {
+		t.Fatal("wttr.in requires an explicit timezone")
+	}
+	raw.Timezone = "UTC"
+
 	raw.TTL = "15m"
 	if _, err := Parse(raw); err == nil {
 		t.Fatal("TTL shorter than the update budget was accepted")

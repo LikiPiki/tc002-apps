@@ -1,6 +1,6 @@
 # Weather
 
-One VPS process fetches [Open-Meteo](https://open-meteo.com/) weather and supplies one daily-summary Berry screen over the AWTRIX HTTP API. The personal/noncommercial API requires no key. Data attribution: Open-Meteo.com, [CC BY 4.0](https://open-meteo.com/en/terms).
+One VPS process fetches [wttr.in](https://wttr.in/) weather (`/<latitude>,<longitude>?format=j1`) and supplies one daily-summary Berry screen over the AWTRIX HTTP API. No API key is required. Weather data is supplied by wttr.in / WorldWeatherOnline. This replaces Open-Meteo; there is only one source and no fallback chain.
 
 ## Components
 
@@ -25,9 +25,9 @@ timezone = "Europe/Moscow"
 screens = ["weather-current"]
 ```
 
-Both coordinates are required; zero is valid. `label` accepts 1-8 ASCII letters/digits/spaces/underscores/hyphens for the small display font. `timezone = "auto"` uses the coordinates' timezone; an explicit IANA timezone also works. Timezone data is embedded in the provider, so validation and date handling work in minimal containers and across DST changes.
+Both coordinates are required; zero is valid. `label` accepts 1-8 ASCII letters/digits/spaces/underscores/hyphens for the small display font. Set an explicit IANA timezone for the coordinates, such as `Europe/Moscow`; the default is `UTC`. Old `timezone = "auto"` configs must be updated because wttr.in does not return an IANA timezone. Timezone data is embedded in the provider, so validation and date handling work in minimal containers and across DST changes.
 
-Defaults are `interval = "15m"`, `timeout = "15s"`, `ttl = "2h"`, `attempts = 3`. The TTL must exceed interval + timeout + the source's 15-minute update period. The interval must be at least one minute. The regular interval starts after an update attempt finishes.
+Defaults are `interval = "15m"`, `timeout = "15s"`, `ttl = "2h"`, `attempts = 3`. The TTL must exceed interval + timeout + a 15-minute freshness margin. The interval must be at least one minute. The regular interval starts after an update attempt finishes.
 
 ## Look at weather on the VPS
 
@@ -35,7 +35,7 @@ Defaults are `interval = "15m"`, `timeout = "15s"`, `ttl = "2h"`, `attempts = 3`
 go run ./apps/server/cmd/server --print
 ```
 
-This fetches one reading and prints formatted JSON without connecting to any clock. It includes temperature, feels-like temperature, humidity, wind, WMO condition code, day/night state and three future daily forecasts. Units are Celsius, metres per second and percent.
+This fetches one reading and prints formatted JSON without connecting to any clock. It includes temperature, feels-like temperature, humidity, wind, a translated WMO condition code, day/night state and two future daily forecasts. Units are Celsius, metres per second (converted from km/h) and percent. Day/night uses today's sunrise/sunset in the configured timezone.
 
 ## Publish to the clock
 
@@ -110,9 +110,9 @@ The producer writes the same versioned object to each selected consumer using `P
 }
 ```
 
-The `today` object contains the forecast for the current local date. The shortened `days` example shows one future forecast entry; actual readings contain three, starting with tomorrow in the selected timezone. The additive `today` field keeps the existing future-day contract compatible. Precipitation probability includes snow as well as rain. Conditions are `CLEAR`, `CLOUD`, `FOG`, `DRIZZLE`, `RAIN`, `SNOW` and `STORM`.
+The `today` object contains the forecast for the current local date. The shortened `days` example shows one future forecast entry; actual readings contain two, starting with tomorrow in the selected timezone. The current screen only consumes `today` and `current`, so it needs no update when changing sources. Daily precipitation probability is the maximum hourly rain/snow probability; daily conditions use the noon forecast. Conditions are `CLEAR`, `CLOUD`, `FOG`, `DRIZZLE`, `RAIN`, `SNOW` and `STORM`.
 
-`updated_at_ms` is the **source observation time**, not the time a response was fetched. It is a string to avoid 32-bit Berry integer overflow. Expired or implausibly future source readings, missing/null values, wrong units and incomplete daily arrays are rejected before publication. A source error does not replace the last known weather with invented zero values.
+`updated_at_ms` is the **source observation time**, not the time a response was fetched. wttr.in supplies a UTC time of day without a date; the provider uses its most recent occurrence and checks the source's daily forecast dates against the configured timezone. It is a string to avoid 32-bit Berry integer overflow. Expired readings, missing/null values, unknown weather codes and incomplete daily arrays are rejected before publication. A source error does not replace the last known weather with invented zero values. Locations with unavailable sunrise/sunset (such as polar day/night) are currently rejected.
 
 Before the first reading, screens show `NO DATA`. Expired readings, future timestamps or an unsynchronized device clock show `STALE`. The top-right pixel is green for fresh weather and amber otherwise. Stored readings survive restarts; expiry still applies. Synchronize the VPS and AWTRIX clocks.
 
@@ -126,4 +126,4 @@ make server-check
 make clock-check APP=weather-current LOCAL_CONFIG=
 ```
 
-`server-check` runs an isolated AWTRIX and a local Open-Meteo-shaped HTTP fixture. It exercises server data processing and the summary, including initial/fresh/stale/unsupported-data states, a stable single page, metric colors, weather conditions, negative temperatures and equal-range gauge positioning. It does not require an API key, internet weather access or physical hardware. CI runs the same integration plus Go tests for retries, timeout, null values, units and DST dates.
+`server-check` runs an isolated AWTRIX and a local wttr.in-shaped HTTP fixture. It exercises server data processing and the summary, including initial/fresh/stale/unsupported-data states, a stable single page, metric colors, weather conditions, negative temperatures and equal-range gauge positioning. It does not require an API key, internet weather access or physical hardware. CI runs the same integration plus Go tests for retries, timeout, missing values, unit conversion and DST dates.

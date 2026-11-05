@@ -15,16 +15,13 @@ import (
 	"github.com/LikiPiki/tc002-apps/internal/awtrix"
 )
 
-func TestFetchUsesCoordinatesAndNormalizesThreeFutureDays(t *testing.T) {
+func TestFetchUsesCoordinatesAndNormalizesTwoFutureDays(t *testing.T) {
 	now := time.Date(2026, time.March, 28, 12, 0, 0, 0, time.UTC)
 	body := encodeForecast(t, forecastFixture(t, now, "Europe/Berlin"))
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
-		if query.Get("latitude") != "55.75" || query.Get("longitude") != "37.62" ||
-			query.Get("wind_speed_unit") != "ms" || query.Get("temperature_unit") != "celsius" ||
-			query.Get("forecast_days") != "4" || query.Get("timeformat") != "unixtime" ||
-			!strings.Contains(query.Get("current"), "apparent_temperature") {
+		if r.URL.Path != "/55.75,37.62" || query.Get("format") != "j1" {
 			t.Errorf("unexpected query: %v", query)
 		}
 
@@ -33,6 +30,7 @@ func TestFetchUsesCoordinatesAndNormalizesThreeFutureDays(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	provider := New(testSettings())
+	provider.settings.Timezone = "Europe/Berlin"
 	provider.endpoint = server.URL
 	provider.now = func() time.Time { return now }
 
@@ -42,12 +40,12 @@ func TestFetchUsesCoordinatesAndNormalizesThreeFutureDays(t *testing.T) {
 	}
 
 	if reading.Current.TemperatureC != 12.5 || reading.Current.Condition != "CLEAR" ||
-		reading.Current.WindSpeedMS != 3.2 || len(reading.Days) != 3 {
+		reading.Current.WindSpeedMS != 3 || len(reading.Days) != 2 || !reading.Current.IsDay {
 		t.Fatalf("unexpected weather: %+v", reading)
 	}
 
 	// The forecast crosses the DST boundary and must still use consecutive local dates.
-	if reading.Today.Date != "2026-03-28" || reading.Days[0].Date != "2026-03-29" || reading.Days[2].Date != "2026-03-31" {
+	if reading.Today.Date != "2026-03-28" || reading.Days[0].Date != "2026-03-29" || reading.Days[1].Date != "2026-03-30" {
 		t.Fatalf("incorrect local forecast dates: %+v", reading.Days)
 	}
 	if reading.Today.MinimumC != 4 || reading.Today.MaximumC != 12 || reading.Today.PrecipitationProbabilityPercent != 0 {
@@ -62,25 +60,25 @@ func TestFetchRejectsIncompleteAndExpiredDataWithoutRetry(t *testing.T) {
 		change func(map[string]any)
 	}{
 		{"missing current", func(raw map[string]any) {
-			delete(raw, "current")
+			delete(raw, "current_condition")
 		}},
-		{"null temperature", func(raw map[string]any) {
-			raw["current"].(map[string]any)["temperature_2m"] = nil
+		{"missing temperature", func(raw map[string]any) {
+			raw["current_condition"].([]map[string]any)[0]["temp_C"] = ""
 		}},
 		{"missing forecast day", func(raw map[string]any) {
-			raw["daily"].(map[string]any)["temperature_2m_min"] = []float64{1, 2}
+			raw["weather"] = raw["weather"].([]map[string]any)[:2]
 		}},
-		{"wrong units", func(raw map[string]any) {
-			raw["current_units"].(map[string]string)["wind_speed_10m"] = "km/h"
+		{"invalid wind", func(raw map[string]any) {
+			raw["current_condition"].([]map[string]any)[0]["windspeedKmph"] = "NaN"
 		}},
 		{"unknown condition", func(raw map[string]any) {
-			raw["current"].(map[string]any)["weather_code"] = 999
+			raw["current_condition"].([]map[string]any)[0]["weatherCode"] = "999"
 		}},
 		{"expired source", func(raw map[string]any) {
-			raw["current"].(map[string]any)["time"] = now.Add(-3 * time.Hour).Unix()
+			raw["current_condition"].([]map[string]any)[0]["observation_time"] = now.Add(-3 * time.Hour).UTC().Format("03:04 PM")
 		}},
 		{"future source", func(raw map[string]any) {
-			raw["current"].(map[string]any)["time"] = now.Add(time.Hour).Unix()
+			raw["current_condition"].([]map[string]any)[0]["observation_time"] = now.Add(time.Hour).UTC().Format("03:04 PM")
 		}},
 	}
 
@@ -114,7 +112,7 @@ func TestFetchRejectsIncompleteAndExpiredDataWithoutRetry(t *testing.T) {
 
 func TestFetchRetriesTransientHTTPFailure(t *testing.T) {
 	now := time.Now()
-	body := encodeForecast(t, forecastFixture(t, now, "UTC"))
+	body := encodeForecast(t, forecastFixture(t, now, "Europe/Moscow"))
 	var requests atomic.Int32
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -188,7 +186,7 @@ func testSettings() Settings {
 		Latitude:  55.75,
 		Longitude: 37.62,
 		Label:     "HOME",
-		Timezone:  "auto",
+		Timezone:  "Europe/Moscow",
 		Screens:   []string{"weather-current"},
 		Interval:  15 * time.Minute,
 		Timeout:   5 * time.Second,
@@ -206,41 +204,28 @@ func forecastFixture(t *testing.T, now time.Time, timezone string) map[string]an
 	}
 
 	local := now.In(location)
-	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location)
-	timestamps := make([]int64, 4)
-	for index := range timestamps {
-		timestamps[index] = midnight.AddDate(0, 0, index).Unix()
+	days := make([]map[string]any, 3)
+	for index := range days {
+		hours := make([]map[string]any, 8)
+		for hour := range hours {
+			hours[hour] = map[string]any{
+				"time": fmt.Sprint(hour * 300), "weatherCode": "113",
+				"chanceofrain": fmt.Sprint(index * 20), "chanceofsnow": "0",
+			}
+		}
+		days[index] = map[string]any{
+			"date":     local.AddDate(0, 0, index).Format("2006-01-02"),
+			"mintempC": fmt.Sprint(4 + index), "maxtempC": fmt.Sprint(12 + index),
+			"astronomy": []map[string]any{{"sunrise": "06:00 AM", "sunset": "08:00 PM"}},
+			"hourly":    hours,
+		}
 	}
-
 	return map[string]any{
-		"timezone": timezone,
-		"current_units": map[string]string{
-			"temperature_2m":       "°C",
-			"apparent_temperature": "°C",
-			"relative_humidity_2m": "%",
-			"wind_speed_10m":       "m/s",
-		},
-		"daily_units": map[string]string{
-			"temperature_2m_min":            "°C",
-			"temperature_2m_max":            "°C",
-			"precipitation_probability_max": "%",
-		},
-		"current": map[string]any{
-			"time":                 now.Unix(),
-			"temperature_2m":       12.5,
-			"apparent_temperature": 11.0,
-			"relative_humidity_2m": 65,
-			"wind_speed_10m":       3.2,
-			"weather_code":         1,
-			"is_day":               1,
-		},
-		"daily": map[string]any{
-			"time":                          timestamps,
-			"temperature_2m_min":            []float64{4, 5, 6, 7},
-			"temperature_2m_max":            []float64{12, 13, 14, 15},
-			"precipitation_probability_max": []float64{0, 20, 60, 80},
-			"weather_code":                  []int{1, 3, 61, 71},
-		},
+		"current_condition": []map[string]any{{
+			"observation_time": now.UTC().Format("03:04 PM"),
+			"temp_C":           "12.5", "FeelsLikeC": "11", "humidity": "65", "windspeedKmph": "10.8", "weatherCode": "113",
+		}},
+		"weather": days,
 	}
 }
 
